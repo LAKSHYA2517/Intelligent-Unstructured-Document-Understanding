@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+python-multipart
+requests
+python-dotenv
+sentence-transformers
+pillow
+pytesseract
+pymupdf
+pdfplumber
+python-docx
+groq
+falkordb
+docling
