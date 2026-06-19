@@ -1213,6 +1213,7 @@ const Dashboard = ({ setView }) => {
   const [messages, setMessages] = useState([]); // Removed mock data for backend integration
   const [docs, setDocs] = useState([]); // Removed mock data for backend integration
   const [showProfile, setShowProfile] = useState(false);
+  const fileInputRef = useRef(null);
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -1287,10 +1288,32 @@ const Dashboard = ({ setView }) => {
           </div>
           <div className="p-4 flex-1 overflow-y-auto">
             {/* Drag & Drop Zone */}
-            <div className="border-2 border-dashed border-storm-500/50 rounded-xl p-6 text-center mb-6 hover:bg-white/5 transition-colors cursor-pointer">
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-storm-500/50 rounded-xl p-6 text-center mb-6 hover:bg-white/5 transition-colors cursor-pointer"
+            >
               <UploadCloud className="mx-auto mb-2 text-storm-300" size={32} />
-              <p className="text-sm font-medium">Drag & drop documents</p>
+              <p className="text-sm font-medium">Click or Drag & drop documents</p>
               <p className="text-xs text-storm-100/60 mt-1">PDF, DOCX, PNG supported</p>
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".pdf,.docx,.png,.jpg,.xlsx,.csv,.txt,.pptx"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    const icon = ['png', 'jpg', 'jpeg'].includes(ext)
+                      ? <FileImage size={18} />
+                      : ['xlsx', 'csv'].includes(ext)
+                        ? <FileBarChart size={18} />
+                        : <FileText size={18} />;
+                    setDocs(prev => [...prev, { id: Date.now(), name: file.name, status: 'Parsed', icon }]);
+                  }
+                  e.target.value = '';
+                }}
+              />
             </div>
 
             <h3 className="text-xs uppercase font-bold text-storm-100/50 tracking-wider mb-3">Ingested Assets</h3>
@@ -1306,11 +1329,19 @@ const Dashboard = ({ setView }) => {
                       <div className="text-storm-300">{doc.icon}</div>
                       <div className="truncate w-32 text-sm">{doc.name}</div>
                     </div>
-                    {doc.status === 'Parsed' ? (
-                      <CheckCircle2 size={14} className="text-emerald-400" />
-                    ) : (
-                      <Loader2 size={14} className="animate-spin text-amber-400" />
-                    )}
+                    <div className="flex items-center gap-2">
+                      {doc.status === 'Parsed' ? (
+                        <CheckCircle2 size={14} className="text-emerald-400" />
+                      ) : (
+                        <Loader2 size={14} className="animate-spin text-amber-400" />
+                      )}
+                      <button
+                        onClick={() => setDocs(prev => prev.filter(d => d.id !== doc.id))}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-storm-100/40 hover:text-red-400"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
