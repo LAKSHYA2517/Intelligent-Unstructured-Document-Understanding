@@ -1,0 +1,11 @@
+.env
+.venv/
+__pycache__/
+app.log
+data/
+.caption_cache/
+.image_caption_cache/
+temp_backend/
+temp_frontend/
+chat_export.txt
+uv.lock
