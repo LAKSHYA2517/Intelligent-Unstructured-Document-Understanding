@@ -260,7 +260,7 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
         for chunk in chunk_text(answer_text):
             yield sse_event("answer", {"text": chunk})
 
-        SKIP_KEYS = {"answer", "ranked_chunks", "contributing_subgraph", "graph_context"}
+        SKIP_KEYS = {"answer", "ranked_chunks", "graph_context"}
         metadata = {k: v for k, v in result.items() if k not in SKIP_KEYS}
         yield sse_event("done", {"cached": False, "metadata": metadata})
 

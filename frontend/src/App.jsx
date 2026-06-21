@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, useInView, useMotionValue, useTransform } from 'framer-motion';
 import { SpotlightCard } from './components/SpotlightCard';
 import { SplashCursor } from './components/SplashCursor';
@@ -40,7 +40,8 @@ import {
   ChevronRight, Lock, User, CheckCircle2, Loader2,
   Sparkles, Zap, Shield, ArrowRight, Play, Star,
   Layers, Search, MessageSquare, Database, Globe, Cpu,
-  X, ArrowLeft, Mail, BookOpen, Scale, FileCheck, Copy
+  X, ArrowLeft, Mail, BookOpen, Scale, FileCheck, Copy,
+  Sun, Moon, Maximize2, Minimize2
 } from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
 
@@ -244,7 +245,7 @@ const PipelineConnector = ({ delay }) => {
 };
 
 // 1. LANDING PAGE
-const LandingPage = ({ setView }) => {
+const LandingPage = ({ setView, isLightMode, setIsLightMode }) => {
   const [scrollY, setScrollY] = useState(0);
   const [showDemo, setShowDemo] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -408,6 +409,13 @@ const LandingPage = ({ setView }) => {
             <ShinyText text="DocuMind" disabled={false} speed={3} className="text-white font-bold text-lg tracking-tight hidden sm:inline" />
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsLightMode(!isLightMode)}
+              className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-storm-300 hover:text-white hover:bg-white/10 transition-colors z-20"
+              title="Toggle Theme"
+            >
+              {isLightMode ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
             <button
               onClick={() => setView('login')}
               className="electric-border text-storm-100/70 hover:text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-white/5 transition-all"
@@ -867,73 +875,73 @@ const LandingPage = ({ setView }) => {
                 </button>
                 <div className="max-h-[90vh] overflow-y-auto px-8 md:px-10 py-24 relative z-10">
 
-                <div className="text-center mb-8">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-storm-300 to-storm-500 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-storm-300/20">
-                    <BrainCircuit size={32} className="text-white" />
+                  <div className="text-center mb-8">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-storm-300 to-storm-500 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-storm-300/20">
+                      <BrainCircuit size={32} className="text-white" />
+                    </div>
+                    <h2 className="text-3xl font-black text-white mb-3">Welcome to DocuMind</h2>
+                    <p className="text-storm-100/60">Intelligent Unstructured Document Understanding powered by Multi-Modal AI</p>
                   </div>
-                  <h2 className="text-3xl font-black text-white mb-3">Welcome to DocuMind</h2>
-                  <p className="text-storm-100/60">Intelligent Unstructured Document Understanding powered by Multi-Modal AI</p>
-                </div>
 
-                {/* What it does */}
-                <div className="space-y-4 mb-8">
-                  <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                    <Sparkles size={18} style={{ color: '#88BDF2' }} /> What does DocuMind do?
-                  </h3>
-                  <p className="text-storm-100/60 text-sm leading-relaxed">
-                    DocuMind uses advanced multi-modal AI to parse, understand, and connect information from your unstructured documents — including PDFs, Word files, scanned images, charts, and tables. It builds a semantic knowledge graph from your documents so you can ask questions in plain English and get cited, explainable answers.
-                  </p>
-                </div>
+                  {/* What it does */}
+                  <div className="space-y-4 mb-8">
+                    <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                      <Sparkles size={18} style={{ color: '#88BDF2' }} /> What does DocuMind do?
+                    </h3>
+                    <p className="text-storm-100/60 text-sm leading-relaxed">
+                      DocuMind uses advanced multi-modal AI to parse, understand, and connect information from your unstructured documents — including PDFs, Word files, scanned images, charts, and tables. It builds a semantic knowledge graph from your documents so you can ask questions in plain English and get cited, explainable answers.
+                    </p>
+                  </div>
 
-                {/* How to upload */}
-                <div className="space-y-4 mb-8">
-                  <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                    <UploadCloud size={18} style={{ color: '#34d399' }} /> How to Upload Documents
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3 bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-black" style={{ backgroundColor: '#88BDF218', color: '#88BDF2' }}>1</div>
-                      <div>
-                        <p className="text-white font-semibold text-sm">Sign in to your workspace</p>
-                        <p className="text-storm-100/50 text-xs mt-1">Create an account or sign in to access the dashboard.</p>
+                  {/* How to upload */}
+                  <div className="space-y-4 mb-8">
+                    <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                      <UploadCloud size={18} style={{ color: '#34d399' }} /> How to Upload Documents
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3 bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-black" style={{ backgroundColor: '#88BDF218', color: '#88BDF2' }}>1</div>
+                        <div>
+                          <p className="text-white font-semibold text-sm">Sign in to your workspace</p>
+                          <p className="text-storm-100/50 text-xs mt-1">Create an account or sign in to access the dashboard.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3 bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-black" style={{ backgroundColor: '#34d39918', color: '#34d399' }}>2</div>
+                        <div>
+                          <p className="text-white font-semibold text-sm">Drag & drop your files</p>
+                          <p className="text-storm-100/50 text-xs mt-1">Upload PDFs, DOCX, PNG, or XLSX files into the workspace panel on the left side.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3 bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-black" style={{ backgroundColor: '#c084fc18', color: '#c084fc' }}>3</div>
+                        <div>
+                          <p className="text-white font-semibold text-sm">Ask questions & get answers</p>
+                          <p className="text-storm-100/50 text-xs mt-1">Use the chat interface to query across all your documents. Get cited answers with source traceability.</p>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-start gap-3 bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-black" style={{ backgroundColor: '#34d39918', color: '#34d399' }}>2</div>
-                      <div>
-                        <p className="text-white font-semibold text-sm">Drag & drop your files</p>
-                        <p className="text-storm-100/50 text-xs mt-1">Upload PDFs, DOCX, PNG, or XLSX files into the workspace panel on the left side.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3 bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-black" style={{ backgroundColor: '#c084fc18', color: '#c084fc' }}>3</div>
-                      <div>
-                        <p className="text-white font-semibold text-sm">Ask questions & get answers</p>
-                        <p className="text-storm-100/50 text-xs mt-1">Use the chat interface to query across all your documents. Get cited answers with source traceability.</p>
-                      </div>
+                  </div>
+
+                  {/* Supported formats */}
+                  <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 mb-8">
+                    <h4 className="text-white font-semibold text-sm mb-3 flex items-center gap-2">
+                      <FileCheck size={16} style={{ color: '#fbbf24' }} /> Supported Formats
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {['PDF', 'DOCX', 'PNG', 'JPG', 'XLSX', 'CSV', 'TXT', 'PPTX'].map(fmt => (
+                        <span key={fmt} className="px-3 py-1 rounded-lg bg-white/[0.05] border border-white/[0.08] text-storm-100/70 text-xs font-mono">{fmt}</span>
+                      ))}
                     </div>
                   </div>
-                </div>
 
-                {/* Supported formats */}
-                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 mb-8">
-                  <h4 className="text-white font-semibold text-sm mb-3 flex items-center gap-2">
-                    <FileCheck size={16} style={{ color: '#fbbf24' }} /> Supported Formats
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {['PDF', 'DOCX', 'PNG', 'JPG', 'XLSX', 'CSV', 'TXT', 'PPTX'].map(fmt => (
-                      <span key={fmt} className="px-3 py-1 rounded-lg bg-white/[0.05] border border-white/[0.08] text-storm-100/70 text-xs font-mono">{fmt}</span>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => { setShowOnboarding(false); setView('login'); }}
-                  className="electric-border w-full text-[#0f1923] hover:text-[#0f1923] font-bold py-4 rounded-xl transition-all shadow-lg shadow-storm-300/20 hover:shadow-storm-300/40 text-lg flex items-center justify-center gap-2 hover:opacity-90"
-                  style={{ background: 'linear-gradient(90deg, #88BDF2, #6A89A7)' }}
-                >
-                  Continue to Sign In <ArrowRight size={20} />
-                </button>
+                  <button
+                    onClick={() => { setShowOnboarding(false); setView('login'); }}
+                    className="electric-border w-full text-[#0f1923] hover:text-[#0f1923] font-bold py-4 rounded-xl transition-all shadow-lg shadow-storm-300/20 hover:shadow-storm-300/40 text-lg flex items-center justify-center gap-2 hover:opacity-90"
+                    style={{ background: 'linear-gradient(90deg, #88BDF2, #6A89A7)' }}
+                  >
+                    Continue to Sign In <ArrowRight size={20} />
+                  </button>
                 </div>
                 <GradualBlur position="top" height="6rem" zIndex={20} />
                 <GradualBlur position="bottom" height="6rem" zIndex={20} />
@@ -1168,7 +1176,7 @@ const LandingPage = ({ setView }) => {
   );
 };
 // 2. LOGIN PAGE
-const LoginPage = ({ setView }) => {
+const LoginPage = ({ setView, isLightMode, setIsLightMode }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -1238,7 +1246,7 @@ const LoginPage = ({ setView }) => {
         className="w-full max-w-md z-10 relative"
       >
         {/* Laser Flow falling from above hitting the top center of the card */}
-        <div 
+        <div
           className="absolute left-0 w-full pointer-events-none z-[-1]"
           style={{
             height: '100vh',
@@ -1264,12 +1272,21 @@ const LoginPage = ({ setView }) => {
           <ArrowLeft size={18} />
           Back to Home
         </button>
-        <button
-          onClick={() => setView('landing')}
-          className="absolute -top-14 right-0 w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-storm-100/50 hover:text-white transition-all"
-        >
-          <X size={20} />
-        </button>
+        <div className="absolute -top-14 right-0 flex items-center gap-2">
+          <button
+            onClick={() => setIsLightMode(!isLightMode)}
+            className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-storm-100/50 hover:text-white transition-all"
+            title="Toggle Theme"
+          >
+            {isLightMode ? <Moon size={20} /> : <Sun size={20} />}
+          </button>
+          <button
+            onClick={() => setView('landing')}
+            className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-storm-100/50 hover:text-white transition-all"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
         <GlassCard className="p-8" style={{ borderColor: 'rgba(207, 158, 255, 0.4)', boxShadow: '0 25px 50px -12px rgba(207, 158, 255, 0.15)' }}>
           <div className="text-center mb-8">
@@ -1353,9 +1370,11 @@ const LoginPage = ({ setView }) => {
 };
 
 // 3. MAIN DASHBOARD
-const Dashboard = ({ setView, session }) => {
+const Dashboard = ({ setView, session, isLightMode, setIsLightMode }) => {
   const [activeTab, setActiveTab] = useState('source');
   const [activeCitation, setActiveCitation] = useState(null);
+  const [graphData, setGraphData] = useState(null);
+  const [isRightPanelMaximized, setIsRightPanelMaximized] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [docs, setDocs] = useState([]);
@@ -1368,7 +1387,7 @@ const Dashboard = ({ setView, session }) => {
     const userQuery = input;
     // We get the index of the next AI message
     const messageIndex = messages.length + 1;
-    
+
     setMessages(prev => [...prev, { sender: 'user', text: userQuery }]);
     setInput('');
     setIsProcessing(true);
@@ -1422,11 +1441,31 @@ const Dashboard = ({ setView, session }) => {
                       return newMsgs;
                     });
                   } else if (currentEvent === 'error') {
-                     setMessages(prev => {
+                    setMessages(prev => {
                       const newMsgs = [...prev];
                       newMsgs[messageIndex] = { ...newMsgs[messageIndex], text: "Error: " + data.message, status: null };
                       return newMsgs;
                     });
+                  } else if (currentEvent === 'done') {
+                    if (data.metadata) {
+                      if (data.metadata.sources) {
+                        const mappedCitations = data.metadata.sources.map(s => ({
+                          id: s.marker,
+                          label: `[${s.marker}]`,
+                          type: "text",
+                          title: s.title || s.source || "Extracted Source",
+                          snippet: s.snippet
+                        }));
+                        setMessages(prev => {
+                          const newMsgs = [...prev];
+                          newMsgs[messageIndex] = { ...newMsgs[messageIndex], citations: mappedCitations };
+                          return newMsgs;
+                        });
+                      }
+                      if (data.metadata.contributing_subgraph) {
+                        setGraphData(data.metadata.contributing_subgraph);
+                      }
+                    }
                   }
                 } catch (e) {
                   // Ignore JSON parse errors for incomplete chunks
@@ -1447,6 +1486,17 @@ const Dashboard = ({ setView, session }) => {
       setIsProcessing(false);
     }
   };
+
+  const activeCitationData = useMemo(() => {
+    if (!activeCitation) return null;
+    for (const msg of messages) {
+      if (msg.citations) {
+        const found = msg.citations.find(c => c.id === activeCitation);
+        if (found) return found;
+      }
+    }
+    return null;
+  }, [activeCitation, messages]);
 
   return (
     <div className="h-screen w-full flex flex-col bg-black text-storm-100 p-2 gap-2 font-sans overflow-hidden relative">
@@ -1474,378 +1524,548 @@ const Dashboard = ({ setView, session }) => {
           <span className="text-xs bg-storm-300/20 text-storm-300 px-2 py-0.5 rounded-md ml-1 font-semibold border border-storm-300/30">Home</span>
         </button>
 
-        <div className="relative">
+        <div className="flex items-center gap-4 relative">
           <button
-            onClick={() => setShowProfile(!showProfile)}
-            className="w-10 h-10 rounded-full bg-gradient-to-tr from-storm-300/20 to-emerald-400/20 border border-storm-300/30 flex items-center justify-center text-storm-300 font-bold hover:shadow-[0_0_15px_rgba(136,189,242,0.4)] transition-all"
+            onClick={() => setIsLightMode(!isLightMode)}
+            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-storm-300 hover:text-white hover:bg-white/10 transition-colors z-20"
+            title="Toggle Theme"
           >
-            A
+            {isLightMode ? <Moon size={18} /> : <Sun size={18} />}
           </button>
 
-          {/* PROFILE DROPDOWN */}
-          <AnimatePresence>
-            {showProfile && (
-              <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                className="absolute right-0 top-14 w-64 bg-[#0B1121]/95 backdrop-blur-xl border border-storm-300/20 rounded-xl shadow-2xl overflow-hidden z-50"
-              >
-                <div className="p-4 border-b border-white/10 bg-white/5">
-                  <p className="text-white font-bold text-lg">Analyst User</p>
-                  <p className="text-storm-100/60 text-xs font-mono mt-1">{session?.user?.email || 'analyst@enterprise.com'}</p>
-                </div>
-                <div className="p-2">
-                  <button
-                    onClick={async () => {
-                      if (supabase) await supabase.auth.signOut();
-                      setView('landing');
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-400/10 rounded-lg transition-colors flex items-center gap-2"
-                  >
-                    <X size={16} /> Log Out
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <div className="relative">
+            <button
+              onClick={() => setShowProfile(!showProfile)}
+              className="w-10 h-10 rounded-full bg-gradient-to-tr from-storm-300/20 to-emerald-400/20 border border-storm-300/30 flex items-center justify-center text-storm-300 font-bold hover:shadow-[0_0_15px_rgba(136,189,242,0.4)] transition-all"
+            >
+              A
+            </button>
+
+            {/* PROFILE DROPDOWN */}
+            <AnimatePresence>
+              {showProfile && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  className="absolute right-0 top-14 w-64 bg-[#0B1121]/95 backdrop-blur-xl border border-storm-300/20 rounded-xl shadow-2xl overflow-hidden z-50"
+                >
+                  <div className="p-4 border-b border-white/10 bg-white/5">
+                    <p className="text-white font-bold text-lg">Analyst User</p>
+                    <p className="text-storm-100/60 text-xs font-mono mt-1">{session?.user?.email || 'analyst@enterprise.com'}</p>
+                  </div>
+                  <div className="p-2">
+                    <button
+                      onClick={async () => {
+                        if (supabase) await supabase.auth.signOut();
+                        setView('landing');
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-400/10 rounded-lg transition-colors flex items-center gap-2"
+                    >
+                      <X size={16} /> Log Out
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
       {/* MAIN 3-PANEL WORKSPACE */}
       <div className="flex-1 w-full flex gap-2 min-h-0">
         {/* LEFT PANEL: Document Management */}
-        <GlassCard className="w-1/4 h-full flex flex-col rounded-xl overflow-hidden">
-          <div className="p-4 border-b border-white/10 bg-black/10 z-10 relative flex items-center">
-            <LayoutDashboard className="text-storm-300 mr-2" />
-            <div className="text-lg font-bold text-white leading-none mt-1">
-              <TrueFocus 
-                sentence="Workspace" 
-                manualMode={false} 
-                blurAmount={3} 
-                borderColor="#88BDF2" 
-                animationDuration={0.4} 
-                pauseBetweenAnimations={1} 
-              />
-            </div>
-          </div>
-          <div className="p-4 flex-1 overflow-y-auto">
-            {/* Drag & Drop Zone */}
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="relative border-2 border-dashed border-storm-500/50 rounded-xl p-6 text-center mb-6 hover:bg-white/5 transition-colors cursor-pointer overflow-hidden group"
-            >
-              {/* ShapeBlur background */}
-              <div className="absolute inset-0 z-0 pointer-events-none opacity-40 group-hover:opacity-80 transition-opacity duration-500">
-                <ShapeBlur variation={0} shapeSize={1.2} roundness={0.4} borderSize={0.05} circleSize={0.3} circleEdge={0.5} />
+        <GlassCard className="min-w-[200px] w-1/4 max-w-[50%] h-full min-h-0 flex flex-col rounded-xl overflow-clip resize-x z-20 shrink-0">
+          <div className="absolute inset-0 flex flex-col overflow-clip z-10">
+            <div className="shrink-0 p-4 border-b border-white/10 bg-black/10 z-10 relative flex items-center">
+              <LayoutDashboard className="text-storm-300 mr-2" />
+              <div className="text-lg font-bold text-white leading-none mt-1">
+                <TrueFocus
+                  sentence="Workspace"
+                  manualMode={false}
+                  blurAmount={3}
+                  borderColor="#88BDF2"
+                  animationDuration={0.4}
+                  pauseBetweenAnimations={1}
+                />
               </div>
-
-              {/* Text content lifted above blur */}
-              <div className="relative z-10 pointer-events-none">
-                <UploadCloud className="mx-auto mb-2 text-storm-300" size={32} />
-                <p className="text-sm font-medium">Click or Drag & drop documents</p>
-                <p className="text-xs text-storm-100/60 mt-1">PDF, DOCX, PNG supported</p>
-              </div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept=".pdf,.docx,.png,.jpg,.xlsx,.csv,.txt,.pptx"
-                onChange={async (e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    const ext = file.name.split('.').pop().toLowerCase();
-                    const icon = ['png', 'jpg', 'jpeg'].includes(ext)
-                      ? <FileImage size={18} />
-                      : ['xlsx', 'csv'].includes(ext)
-                        ? <FileBarChart size={18} />
-                        : <FileText size={18} />;
-                    
-                    const newDoc = { id: Date.now(), name: file.name, status: 'Uploading...', icon };
-                    setDocs(prev => [...prev, newDoc]);
-
-                    const formData = new FormData();
-                    formData.append('file', file);
-
-                    try {
-                      const res = await fetch('http://localhost:8000/api/ingest', {
-                        method: 'POST',
-                        body: formData
-                      });
-                      if (res.ok) {
-                        const data = await res.json();
-                        setDocs(prev => prev.map(d => d.id === newDoc.id ? { ...d, status: 'Parsed' } : d));
-                      } else {
-                        const err = await res.json();
-                        setDocs(prev => prev.map(d => d.id === newDoc.id ? { ...d, status: 'Error: ' + err.detail } : d));
-                      }
-                    } catch (err) {
-                      console.error(err);
-                      setDocs(prev => prev.map(d => d.id === newDoc.id ? { ...d, status: 'Error' } : d));
-                    }
-                  }
-                  e.target.value = '';
-                }}
-              />
             </div>
-
-            <h3 className="text-xs uppercase font-bold text-storm-100/50 tracking-wider mb-3 relative z-10">
-              <ScrollFloat
-                text="Ingested Assets"
-                animationDuration={1}
-                stagger={0.05}
-                ease="back.out(2)"
-                scrollStart="center bottom+=50"
-                scrollEnd="bottom bottom-=400"
-              />
-            </h3>
-            <div className="space-y-2">
-              {docs.length === 0 ? (
-                <div className="text-center p-4 border border-white/5 rounded-lg bg-white/[0.02]">
-                  <p className="text-sm text-storm-100/50">No documents uploaded yet.</p>
+            <div className="p-4 flex-1 overflow-y-auto">
+              {/* Drag & Drop Zone */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="relative border-2 border-dashed border-storm-500/50 rounded-xl p-6 text-center mb-6 hover:bg-white/5 transition-colors cursor-pointer overflow-hidden group"
+              >
+                {/* ShapeBlur background */}
+                <div className="absolute inset-0 z-0 pointer-events-none opacity-40 group-hover:opacity-80 transition-opacity duration-500">
+                  <ShapeBlur variation={0} shapeSize={1.2} roundness={0.4} borderSize={0.05} circleSize={0.3} circleEdge={0.5} />
                 </div>
-              ) : (
-                docs.map(doc => (
-                  <SpotlightCard key={doc.id} className="p-3 flex items-center justify-between group hover:bg-white/10 transition-colors cursor-pointer border border-white/5 bg-white/5">
-                    <div className="flex items-center gap-3">
-                      <div className="text-storm-300">{doc.icon}</div>
-                      <div className="truncate w-32 text-sm">{doc.name}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {doc.status === 'Parsed' ? (
-                        <CheckCircle2 size={14} className="text-emerald-400" />
-                      ) : (
-                        <Loader2 size={14} className="animate-spin text-amber-400" />
-                      )}
-                      <button
-                        onClick={() => setDocs(prev => prev.filter(d => d.id !== doc.id))}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-storm-100/40 hover:text-red-400"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  </SpotlightCard>
-                ))
-              )}
+
+                {/* Text content lifted above blur */}
+                <div className="relative z-10 pointer-events-none">
+                  <UploadCloud className="mx-auto mb-2 text-storm-300" size={32} />
+                  <p className="text-sm font-medium">Click or Drag & drop documents</p>
+                  <p className="text-xs text-storm-100/60 mt-1">PDF, DOCX, PNG supported</p>
+                </div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept=".pdf,.docx,.png,.jpg,.xlsx,.csv,.txt,.pptx"
+                  onChange={async (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const ext = file.name.split('.').pop().toLowerCase();
+                      const icon = ['png', 'jpg', 'jpeg'].includes(ext)
+                        ? <FileImage size={18} />
+                        : ['xlsx', 'csv'].includes(ext)
+                          ? <FileBarChart size={18} />
+                          : <FileText size={18} />;
+
+                      const newDoc = { id: Date.now(), name: file.name, status: 'Uploading...', icon };
+                      setDocs(prev => [...prev, newDoc]);
+
+                      const formData = new FormData();
+                      formData.append('file', file);
+
+                      try {
+                        const res = await fetch('http://localhost:8000/api/ingest', {
+                          method: 'POST',
+                          body: formData
+                        });
+                        if (res.ok) {
+                          const data = await res.json();
+                          setDocs(prev => prev.map(d => d.id === newDoc.id ? { ...d, status: 'Parsed' } : d));
+                        } else {
+                          const err = await res.json();
+                          setDocs(prev => prev.map(d => d.id === newDoc.id ? { ...d, status: 'Error: ' + err.detail } : d));
+                        }
+                      } catch (err) {
+                        console.error(err);
+                        setDocs(prev => prev.map(d => d.id === newDoc.id ? { ...d, status: 'Error' } : d));
+                      }
+                    }
+                    e.target.value = '';
+                  }}
+                />
+              </div>
+
+              <h3 className="text-xs uppercase font-bold text-storm-100/50 tracking-wider mb-3 relative z-10">
+                <ScrollFloat
+                  text="Ingested Assets"
+                  animationDuration={1}
+                  stagger={0.05}
+                  ease="back.out(2)"
+                  scrollStart="center bottom+=50"
+                  scrollEnd="bottom bottom-=400"
+                />
+              </h3>
+              <div className="space-y-2">
+                {docs.length === 0 ? (
+                  <div className="text-center p-4 border border-white/5 rounded-lg bg-white/[0.02]">
+                    <p className="text-sm text-storm-100/50">No documents uploaded yet.</p>
+                  </div>
+                ) : (
+                  docs.map(doc => (
+                    <SpotlightCard key={doc.id} className="p-3 flex items-center justify-between group hover:bg-white/10 transition-colors cursor-pointer border border-white/5 bg-white/5">
+                      <div className="flex items-center gap-3">
+                        <div className="text-storm-300">{doc.icon}</div>
+                        <div className="truncate w-32 text-sm">{doc.name}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {doc.status === 'Parsed' ? (
+                          <CheckCircle2 size={14} className="text-emerald-400" />
+                        ) : (
+                          <Loader2 size={14} className="animate-spin text-amber-400" />
+                        )}
+                        <button
+                          onClick={() => setDocs(prev => prev.filter(d => d.id !== doc.id))}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-storm-100/40 hover:text-red-400"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </SpotlightCard>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </GlassCard>
 
         {/* CENTER PANEL: Chat & QA */}
-        <GlassCard className="w-2/4 h-full flex flex-col rounded-xl overflow-hidden relative">
-          <AuroraBackground className="opacity-30 mix-blend-screen" />
-          
-          <div className="p-4 border-b border-white/10 bg-black/20 backdrop-blur-md flex justify-between items-center z-10 relative">
-            <div className="text-lg font-bold text-white mt-1">
-              <TrueFocus 
-                sentence="Multi-Modal Analyst Assistant" 
-                manualMode={false} 
-                blurAmount={4} 
-                borderColor="#cf9eff" 
-                animationDuration={0.6} 
-                pauseBetweenAnimations={1.5} 
-              />
-            </div>
-            <span className="text-xs bg-storm-500/20 text-storm-300 px-2 py-1 rounded-full border border-storm-500/30">Llama-3 Reasoning</span>
-          </div>
+        <GlassCard className="flex-1 min-w-[300px] h-full min-h-0 flex flex-col rounded-xl overflow-clip relative z-10">
+          <div className="absolute inset-0 flex flex-col overflow-clip z-10">
+            <AuroraBackground className="absolute inset-0 z-0 opacity-30 mix-blend-screen pointer-events-none" />
 
-          <div className="flex-1 p-6 overflow-y-auto space-y-6 flex flex-col justify-end z-10 relative">
-            {messages.length === 0 ? (
-              <div className="text-center text-storm-100/40 my-auto">
-                <MessageSquare size={48} className="mx-auto mb-4 opacity-50" />
-                <p>No messages yet. Start a conversation to analyze your documents.</p>
+            <div className="shrink-0 p-4 border-b border-white/10 bg-black/20 backdrop-blur-md flex justify-between items-center z-10 relative">
+              <div className="text-lg font-bold text-white mt-1">
+                <TrueFocus
+                  sentence="Multi-Modal Analyst Assistant"
+                  manualMode={false}
+                  blurAmount={4}
+                  borderColor="#cf9eff"
+                  animationDuration={0.6}
+                  pauseBetweenAnimations={1.5}
+                />
               </div>
-            ) : (
-              messages.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] rounded-2xl p-4 backdrop-blur-md border ${msg.sender === 'user' ? 'bg-storm-500/40 border-storm-300/30 text-white rounded-br-none shadow-[0_0_15px_rgba(106,137,167,0.3)]' : 'bg-white/10 border-white/20 rounded-bl-none shadow-xl'}`}>
-                    <div className="text-sm leading-relaxed">
-                      {msg.sender === 'ai' ? (
-                        <FallingText
-                          text={msg.text}
-                          highlightWords={['unstructured', 'graph', 'data']}
-                          highlightClass="text-emerald-400 font-bold"
-                          trigger="hover"
-                          backgroundColor="transparent"
-                          wireframes={false}
-                          gravity={0.5}
-                          fontSize="14px"
-                        />
-                      ) : (
-                        msg.text
+              <span className="text-xs bg-storm-500/20 text-storm-300 px-2 py-1 rounded-full border border-storm-500/30">Llama-3 Reasoning</span>
+            </div>
+
+            <div className="flex-1 min-h-0 p-6 overflow-y-auto space-y-6 flex flex-col z-10 relative">
+              {messages.length === 0 ? (
+                <div className="text-center text-storm-100/40 my-auto">
+                  <MessageSquare size={48} className="mx-auto mb-4 opacity-50" />
+                  <p>No messages yet. Start a conversation to analyze your documents.</p>
+                </div>
+              ) : (
+                messages.map((msg, idx) => (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.4, type: "spring", stiffness: 250, damping: 25 }}
+                    key={idx}
+                    className={`flex w-full ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`relative max-w-[85%] rounded-2xl p-5 backdrop-blur-xl border ${msg.sender === 'user'
+                          ? 'bg-gradient-to-br from-storm-500/40 to-storm-500/10 border-storm-300/40 text-white rounded-br-sm shadow-[0_0_20px_rgba(106,137,167,0.2)]'
+                          : 'bg-gradient-to-br from-[#121c26]/90 to-[#0a1017]/90 border-storm-500/30 rounded-bl-sm shadow-[0_10px_40px_rgba(0,0,0,0.5)]'
+                        }`}
+                    >
+                      {/* Subtle Inner Glow for AI Message */}
+                      {msg.sender === 'ai' && (
+                        <div className="absolute inset-0 rounded-2xl rounded-bl-sm pointer-events-none overflow-hidden">
+                          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#cf9eff]/30 to-transparent" />
+                          <div className="absolute top-0 right-0 w-[1px] h-full bg-gradient-to-b from-[#cf9eff]/20 to-transparent" />
+                        </div>
+                      )}
+
+                      <div className={`text-[15px] leading-[1.8] tracking-wide relative z-10 ${msg.sender === 'user' ? 'text-white' : 'text-storm-100/90'}`}>
+                        {msg.status ? (
+                          <div className="flex items-center gap-2 text-storm-300 text-sm animate-pulse">
+                            <div className="w-4 h-4 border-2 border-storm-300 border-t-transparent rounded-full animate-spin" />
+                            {msg.status === 'starting_generation' ? 'Thinking...' :
+                             msg.status === 'request_received' ? 'Searching knowledge graph...' :
+                             msg.status === 'cache_hit' ? 'Cache hit found...' :
+                             msg.status === 'cache_miss' ? 'Analyzing documents...' :
+                             msg.status}
+                          </div>
+                        ) : (
+                          msg.text
+                        )}
+                      </div>
+                      {msg.citations && (
+                        <div className="mt-4 pt-3 border-t border-storm-500/20 flex flex-wrap gap-2 relative z-10">
+                          {msg.citations.map(cite => (
+                            <button
+                              key={cite.id}
+                              onClick={() => setActiveCitation(cite.id)}
+                              className="text-xs bg-storm-900/80 hover:bg-[#cf9eff]/10 hover:text-[#cf9eff] border border-storm-500/40 px-3 py-1.5 rounded-lg transition-all duration-300 flex items-center gap-1.5 shadow-sm hover:shadow-[0_0_15px_rgba(207,158,255,0.3)] hover:border-[#cf9eff]/50 font-medium text-storm-100/80"
+                            >
+                              <Network size={12} className="opacity-70" /> {cite.label}
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    {msg.citations && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {msg.citations.map(cite => (
-                          <button
-                            key={cite.id}
-                            onClick={() => setActiveCitation(cite.id)}
-                            className="text-xs bg-storm-900/50 hover:bg-storm-300 hover:text-storm-900 border border-storm-500/40 px-2 py-1 rounded transition-colors flex items-center gap-1"
-                          >
-                            <Network size={12} /> {cite.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          <div className="p-4 bg-black/20 backdrop-blur-md border-t border-white/10 z-10 relative">
-            <div className="relative">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Ask a question across all documents..."
-                className="w-full bg-white/5 border border-white/20 rounded-xl py-3 pl-4 pr-12 text-white placeholder-storm-100/40 focus:outline-none focus:border-storm-300"
-              />
-              <button
-                onClick={handleSend}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-storm-500 hover:bg-storm-300 hover:text-storm-900 text-white rounded-lg transition-colors"
-              >
-                <Send size={18} />
-              </button>
+                  </motion.div>
+                ))
+              )}
+            </div>
+            <div className="shrink-0 p-4 bg-black/20 backdrop-blur-md border-t border-white/10 z-10 relative">
+              <div className="flex items-center w-full bg-white/5 border border-white/20 rounded-xl pr-2 focus-within:border-storm-300 transition-colors">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  placeholder="Ask a question across all documents..."
+                  className="flex-1 bg-transparent py-3 pl-4 pr-2 text-white placeholder-storm-100/40 focus:outline-none"
+                />
+                <button
+                  onClick={handleSend}
+                  className="p-2 bg-storm-500 hover:bg-storm-300 hover:text-storm-900 text-white rounded-lg transition-colors shrink-0"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
             </div>
           </div>
         </GlassCard>
 
         {/* RIGHT PANEL: Context Viewer & Graph */}
-        <GlassCard className="w-1/4 h-full flex flex-col rounded-xl overflow-hidden">
-          <div className="flex border-b border-white/10 bg-black/10">
-            <button
-              onClick={() => setActiveTab('source')}
-              className={`flex-1 p-4 text-sm font-semibold transition-colors ${activeTab === 'source' ? 'text-storm-100 border-b-2 border-storm-300 bg-white/5' : 'text-storm-100/50 hover:text-white'}`}
-            >
-              Source Viewer
-            </button>
-            <button
-              onClick={() => setActiveTab('graph')}
-              className={`flex-1 p-4 text-sm font-semibold transition-colors ${activeTab === 'graph' ? 'text-storm-100 border-b-2 border-storm-300 bg-white/5' : 'text-storm-100/50 hover:text-white'}`}
-            >
-              Knowledge Graph
-            </button>
-          </div>
+        {isRightPanelMaximized && (
+           <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setIsRightPanelMaximized(false)} />
+        )}
+        <div 
+          className={isRightPanelMaximized ? "fixed inset-8 md:inset-16 z-50 flex flex-col rounded-2xl overflow-clip shadow-[0_0_100px_rgba(0,0,0,0.9)] border border-storm-300/30 bg-[#0a1017]/95 backdrop-blur-xl transition-all duration-300" : "min-w-[200px] w-1/4 max-w-[50%] h-full min-h-0 flex flex-col rounded-xl overflow-clip resize-x z-20 shrink-0 bg-white/10 backdrop-blur-lg border border-white/10 shadow-2xl transition-all duration-300"} 
+          style={{ direction: isRightPanelMaximized ? 'ltr' : 'rtl' }}
+        >
+          <div className="absolute inset-0 flex flex-col overflow-clip z-10" style={{ direction: 'ltr' }}>
+            <div className="flex border-b border-white/10 bg-black/10 shrink-0">
+              <button
+                onClick={() => setActiveTab('source')}
+                className={`flex-1 p-4 text-sm font-semibold transition-colors ${activeTab === 'source' ? 'text-storm-100 border-b-2 border-storm-300 bg-white/5' : 'text-storm-100/50 hover:text-white'}`}
+              >
+                Source Viewer
+              </button>
+              <button
+                onClick={() => setActiveTab('graph')}
+                className={`flex-1 p-4 text-sm font-semibold transition-colors ${activeTab === 'graph' ? 'text-storm-100 border-b-2 border-storm-300 bg-white/5' : 'text-storm-100/50 hover:text-white'}`}
+              >
+                Knowledge Graph
+              </button>
+              <button 
+                onClick={() => setIsRightPanelMaximized(!isRightPanelMaximized)}
+                className="p-4 text-storm-100/50 hover:text-white transition-colors border-l border-white/10 shrink-0 flex items-center justify-center bg-black/20"
+                title={isRightPanelMaximized ? "Minimize" : "Maximize"}
+              >
+                {isRightPanelMaximized ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+              </button>
+            </div>
 
-          <div className="flex-1 p-4 overflow-y-auto">
-            <AnimatePresence mode="wait">
-              {activeTab === 'source' ? (
-                <motion.div
-                  key="source"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="space-y-4"
-                >
-                  {activeCitation ? (
-                    <>
-                      <div className="bg-white/5 border border-white/10 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-2 text-xs text-storm-300 font-bold uppercase tracking-wider">
-                          <FileBarChart size={14} /> Source Data Table
-                        </div>
-                        <table className="w-full text-xs text-left">
-                          <thead>
-                            <tr className="border-b border-white/10 text-storm-100/60">
-                              <th className="py-2">Division</th>
-                              <th className="py-2">Q3 Revenue</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr className="border-b border-white/5 bg-storm-500/20">
-                              <td className="py-2">Enterprise Cloud</td>
-                              <td className="py-2 font-mono text-emerald-400">$4.2M</td>
-                            </tr>
-                            <tr>
-                              <td className="py-2">Hardware</td>
-                              <td className="py-2 font-mono">$1.8M</td>
-                            </tr>
-                          </tbody>
-                        </table>
+            <div className="flex-1 p-4 overflow-y-auto">
+              <AnimatePresence mode="wait">
+                {activeTab === 'source' ? (
+                  <motion.div
+                    key="source"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="space-y-4"
+                  >
+                    {activeCitation ? (
+                      activeCitationData ? (
+                        <>
+                          {activeCitationData.type === 'table' && (
+                            <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-2 text-xs text-storm-300 font-bold uppercase tracking-wider">
+                                <FileBarChart size={14} /> {activeCitationData.title || "Source Data Table"}
+                              </div>
+                              <table className="w-full text-xs text-left">
+                                <thead>
+                                  <tr className="border-b border-white/10 text-storm-100/60">
+                                    {activeCitationData.headers?.map((h, i) => <th key={i} className="py-2">{h}</th>)}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {activeCitationData.rows?.map((row, i) => (
+                                    <tr key={i} className={`border-b border-white/5 ${i % 2 === 0 ? 'bg-storm-500/20' : ''}`}>
+                                      {row.map((cell, j) => <td key={j} className={`py-2 ${j > 0 ? 'font-mono text-emerald-400' : ''}`}>{cell}</td>)}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+
+                          {activeCitationData.type === 'image' && (
+                            <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-2 text-xs text-storm-300 font-bold uppercase tracking-wider">
+                                <FileImage size={14} /> {activeCitationData.title || "Referenced Image"}
+                              </div>
+                              <div className="w-full h-32 bg-storm-900 rounded border border-storm-500/30 flex items-center justify-center relative overflow-hidden">
+                                {activeCitationData.imageUrl ? (
+                                  <img src={activeCitationData.imageUrl} alt="Source" className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="text-xs text-storm-100/40">Image Data Missing</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          {activeCitationData.type === 'text' && (
+                            <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-2 text-xs text-storm-300 font-bold uppercase tracking-wider">
+                                <FileText size={14} /> {activeCitationData.title || "Extracted Source"}
+                              </div>
+                              <div className="text-sm text-white/80 leading-relaxed italic border-l-2 border-storm-500/50 pl-3">
+                                "{activeCitationData.snippet}"
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          {/* Fallback to mock data for demo purposes if no dynamic data exists */}
+                          <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+                            <div className="flex items-center gap-2 mb-2 text-xs text-storm-300 font-bold uppercase tracking-wider">
+                              <FileBarChart size={14} /> Source Data Table
+                            </div>
+                            <table className="w-full text-xs text-left">
+                              <thead>
+                                <tr className="border-b border-white/10 text-storm-100/60">
+                                  <th className="py-2">Division</th>
+                                  <th className="py-2">Q3 Revenue</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr className="border-b border-white/5 bg-storm-500/20">
+                                  <td className="py-2">Enterprise Cloud</td>
+                                  <td className="py-2 font-mono text-emerald-400">$4.2M</td>
+                                </tr>
+                                <tr>
+                                  <td className="py-2">Hardware</td>
+                                  <td className="py-2 font-mono">$1.8M</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+                            <div className="flex items-center gap-2 mb-2 text-xs text-storm-300 font-bold uppercase tracking-wider">
+                              <FileImage size={14} /> Referenced Image
+                            </div>
+                            <div className="w-full h-32 bg-storm-900 rounded border border-storm-500/30 flex items-center justify-center relative overflow-hidden">
+                              {/* Mock architecture diagram layout */}
+                              <div className="w-8 h-8 bg-storm-300 rounded-sm absolute top-4 left-4" />
+                              <div className="w-8 h-8 bg-storm-300 rounded-sm absolute top-4 right-4" />
+                              <div className="w-12 h-6 bg-emerald-400/80 rounded absolute bottom-4" />
+                              <svg className="absolute w-full h-full opacity-30" viewBox="0 0 100 100">
+                                <line x1="25" y1="25" x2="50" y2="75" stroke="#fff" strokeWidth="2" />
+                                <line x1="75" y1="25" x2="50" y2="75" stroke="#fff" strokeWidth="2" />
+                              </svg>
+                            </div>
+                          </div>
+                        </>
+                      )
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-center text-storm-100/40 pt-20">
+                        <FileText size={48} className="mb-4 opacity-50" />
+                        <p>Click a citation chip in the chat<br />to view extracted multi-modal sources.</p>
                       </div>
-
-                      <div className="bg-white/5 border border-white/10 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-2 text-xs text-storm-300 font-bold uppercase tracking-wider">
-                          <FileImage size={14} /> Referenced Image
+                    )}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="graph"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="h-full flex items-center justify-center relative"
+                  >
+                    {graphData && graphData.nodes?.length > 0 ? (
+                      <>
+                        {/* Scrolling Text overlay at the top */}
+                        <div className="absolute top-0 left-0 w-full overflow-hidden pointer-events-none opacity-40 mix-blend-screen z-0 py-2 border-b border-white/5 bg-black/20">
+                          <div className="flex whitespace-nowrap" style={{ animation: 'slideRight 20s linear infinite' }}>
+                            <style>
+                              {`
+                           @keyframes slideRight {
+                             0% { transform: translateX(-50%); }
+                             100% { transform: translateX(0); }
+                           }
+                           `}
+                            </style>
+                            <span className="text-xl font-bold tracking-[0.5em] text-storm-300 pr-10">KNOWLEDGE * GRAPH * ANALYSIS * </span>
+                            <span className="text-xl font-bold tracking-[0.5em] text-storm-300 pr-10">KNOWLEDGE * GRAPH * ANALYSIS * </span>
+                            <span className="text-xl font-bold tracking-[0.5em] text-storm-300 pr-10">KNOWLEDGE * GRAPH * ANALYSIS * </span>
+                          </div>
                         </div>
-                        <div className="w-full h-32 bg-storm-900 rounded border border-storm-500/30 flex items-center justify-center relative overflow-hidden">
-                          {/* Mock architecture diagram layout */}
-                          <div className="w-8 h-8 bg-storm-300 rounded-sm absolute top-4 left-4" />
-                          <div className="w-8 h-8 bg-storm-300 rounded-sm absolute top-4 right-4" />
-                          <div className="w-12 h-6 bg-emerald-400/80 rounded absolute bottom-4" />
-                          <svg className="absolute w-full h-full opacity-30" viewBox="0 0 100 100">
-                            <line x1="25" y1="25" x2="50" y2="75" stroke="#fff" strokeWidth="2" />
-                            <line x1="75" y1="25" x2="50" y2="75" stroke="#fff" strokeWidth="2" />
+
+                      {/* Dynamic Radial Knowledge Graph */}
+                      {(() => {
+                        const vbSize = isRightPanelMaximized ? 400 : 200;
+                        const center = vbSize / 2;
+                        const radius = isRightPanelMaximized ? 150 : 65;
+                        const maxLen = isRightPanelMaximized ? 40 : 15;
+
+                        return (
+                          <svg className="w-full h-full relative z-10" viewBox={`0 0 ${vbSize} ${vbSize}`}>
+                            <defs>
+                              <radialGradient id="nodeGlow" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stopColor="#cf9eff" stopOpacity="0.4" />
+                                <stop offset="100%" stopColor="#cf9eff" stopOpacity="0" />
+                              </radialGradient>
+                            </defs>
+
+                            {/* 1. Edges (Bottom Layer) */}
+                            {graphData.edges?.map((edge, i) => {
+                              const srcIndex = graphData.nodes.findIndex(n => n.node_id === edge.source);
+                              const tgtIndex = graphData.nodes.findIndex(n => n.node_id === edge.target);
+                              const getPos = (idx) => {
+                                if (idx === -1) return { x: center, y: center };
+                                const angle = (idx / graphData.nodes.length) * 2 * Math.PI;
+                                return { x: center + radius * Math.cos(angle), y: center + radius * Math.sin(angle) };
+                              };
+                              const srcPos = getPos(srcIndex);
+                              const tgtPos = getPos(tgtIndex);
+                              
+                              return (
+                                <motion.line 
+                                  key={`edge-${i}`}
+                                  x1={srcPos.x} y1={srcPos.y} x2={tgtPos.x} y2={tgtPos.y} 
+                                  stroke="#cf9eff" strokeWidth={isRightPanelMaximized ? "2" : "1.5"} strokeOpacity="0.5"
+                                  initial={{ pathLength: 0, opacity: 0 }} 
+                                  animate={{ pathLength: 1, opacity: 1 }} 
+                                  transition={{ duration: 1.5, delay: 0.2 + (i * 0.1), ease: "easeOut" }}
+                                />
+                              );
+                            })}
+
+                            {/* 2. Nodes (Middle Layer) */}
+                            {graphData.nodes?.map((node, i) => {
+                              const angle = (i / graphData.nodes.length) * 2 * Math.PI;
+                              const x = center + radius * Math.cos(angle);
+                              const y = center + radius * Math.sin(angle);
+                              const isCenter = i === 0;
+
+                              return (
+                                <motion.g 
+                                  key={`node-circle-${i}`}
+                                  initial={{ scale: 0 }} 
+                                  animate={{ scale: 1 }} 
+                                  transition={{ type: "spring", stiffness: 200, delay: 0.1 + (i * 0.1) }}
+                                >
+                                  <circle cx={x} cy={y} r={isCenter ? (isRightPanelMaximized ? "28" : "22") : (isRightPanelMaximized ? "20" : "18")} fill="url(#nodeGlow)" />
+                                  <circle cx={x} cy={y} r={isCenter ? (isRightPanelMaximized ? "16" : "12") : (isRightPanelMaximized ? "10" : "8")} fill="#121c26" stroke={isCenter ? "#88BDF2" : "#cf9eff"} strokeWidth={isRightPanelMaximized ? "2" : "1.5"} />
+                                </motion.g>
+                              );
+                            })}
+
+                            {/* 3. Text (Top Layer) */}
+                            {graphData.nodes?.map((node, i) => {
+                              const angle = (i / graphData.nodes.length) * 2 * Math.PI;
+                              const x = center + radius * Math.cos(angle);
+                              const y = center + radius * Math.sin(angle);
+                              const isCenter = i === 0;
+                              const label = node.label || node.node_id || "";
+                              const yOffset = isCenter ? (isRightPanelMaximized ? 24 : 18) : (isRightPanelMaximized ? 18 : 14);
+
+                              return (
+                                <motion.text 
+                                  key={`node-text-${i}`}
+                                  x={x} y={y + yOffset} 
+                                  fontSize={isRightPanelMaximized ? "6" : "4"} 
+                                  fill={isCenter ? "#88BDF2" : "#e2c8ff"} 
+                                  textAnchor="middle" dy=".3em" fontWeight="600"
+                                  initial={{ opacity: 0 }} 
+                                  animate={{ opacity: 1 }} 
+                                  transition={{ duration: 0.5, delay: 0.5 + (i * 0.1) }}
+                                >
+                                  {label.length > maxLen ? label.substring(0, maxLen) + '...' : label}
+                                </motion.text>
+                              );
+                            })}
                           </svg>
+                        );
+                      })()}
+                        <div className="absolute bottom-0 text-xs text-storm-100/50 text-center w-full pb-4 z-20">
+                          Semantic relational mapping visualized dynamically.
                         </div>
+                      </>
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-center text-storm-100/40">
+                        <Network size={48} className="mb-4 opacity-50" />
+                        <p>No knowledge graph generated for this answer.<br />Ask a question to begin analysis.</p>
                       </div>
-                    </>
-                  ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center text-storm-100/40 pt-20">
-                      <FileText size={48} className="mb-4 opacity-50" />
-                      <p>Click a citation chip in the chat<br />to view extracted multi-modal sources.</p>
-                    </div>
-                  )}
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="graph"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="h-full flex items-center justify-center relative"
-                >
-                  {docs.length > 0 ? (
-                    <>
-                      {/* Dynamic Circular Text overlay on the Graph Center */}
-                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[160px] h-[160px] pointer-events-none opacity-40 mix-blend-screen z-0">
-                        <CircularText
-                          text="KNOWLEDGE*GRAPH*ANALYSIS*"
-                          onHover="slowDown"
-                          spinDuration={15}
-                        />
-                      </div>
-                    
-                      {/* Mock Knowledge Graph using SVG (Only shows if docs exist) */}
-                      <svg className="w-full h-full relative z-10" viewBox="0 0 200 200">
-                        {/* Edges */}
-                        <line x1="100" y1="100" x2="50" y2="50" stroke="#6A89A7" strokeWidth="2" strokeDasharray="4" />
-                        <line x1="100" y1="100" x2="150" y2="60" stroke="#6A89A7" strokeWidth="2" />
-                        <line x1="100" y1="100" x2="120" y2="150" stroke="#6A89A7" strokeWidth="2" />
-                        <line x1="150" y1="60" x2="180" y2="90" stroke="#6A89A7" strokeWidth="1" />
-
-                        {/* Nodes */}
-                        <circle cx="100" cy="100" r="12" fill="#88BDF2" />
-                        <text x="100" y="100" fontSize="6" fill="#000" textAnchor="middle" dy=".3em" fontWeight="bold">Concept</text>
-
-                        <circle cx="50" cy="50" r="10" fill="#6A89A7" />
-                        <text x="50" y="35" fontSize="5" fill="#fff" textAnchor="middle">Paragraph 4</text>
-
-                        <circle cx="150" cy="60" r="14" fill="#384959" stroke="#88BDF2" strokeWidth="2" />
-                        <text x="150" y="60" fontSize="5" fill="#fff" textAnchor="middle" dy=".3em">Table 3</text>
-
-                        <circle cx="120" cy="150" r="10" fill="#6A89A7" />
-                        <text x="120" y="165" fontSize="5" fill="#fff" textAnchor="middle">Image Cap.</text>
-
-                        <circle cx="180" cy="90" r="6" fill="#BDDDFC" />
-                      </svg>
-                      <div className="absolute bottom-0 text-xs text-storm-100/50 text-center w-full pb-4 z-20">
-                        Semantic relational mapping visualized.
-                      </div>
-                    </>
-                  ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center text-storm-100/40">
-                      <Network size={48} className="mb-4 opacity-50" />
-                      <p>No knowledge graph generated yet.<br />Upload a document to begin analysis.</p>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
-        </GlassCard>
+        </div>
       </div>
     </div>
   );
@@ -1855,6 +2075,15 @@ const Dashboard = ({ setView, session }) => {
 export default function App() {
   const [view, setView] = useState('landing'); // 'landing', 'login', 'dashboard'
   const [session, setSession] = useState(null);
+  const [isLightMode, setIsLightMode] = useState(false);
+
+  useEffect(() => {
+    if (isLightMode) {
+      document.documentElement.classList.add('light-theme');
+    } else {
+      document.documentElement.classList.remove('light-theme');
+    }
+  }, [isLightMode]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -1868,24 +2097,24 @@ export default function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session) {
+      if (_event === 'SIGNED_IN') {
         setView('dashboard');
-      } else if (view === 'dashboard') {
+      } else if (_event === 'SIGNED_OUT') {
         setView('landing');
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [view]);
+  }, []);
 
   return (
     <ClickSpark sparkColor="#cf9eff" sparkSize={10} sparkRadius={15} sparkCount={8} duration={400}>
       <div className="fixed inset-0 z-50 pointer-events-none">
         <FluidGlass />
       </div>
-      {view === 'landing' && <LandingPage setView={setView} />}
-      {view === 'login' && <LoginPage setView={setView} />}
-      {view === 'dashboard' && <Dashboard setView={setView} session={session} />}
+      {view === 'landing' && <LandingPage setView={setView} isLightMode={isLightMode} setIsLightMode={setIsLightMode} />}
+      {view === 'login' && <LoginPage setView={setView} isLightMode={isLightMode} setIsLightMode={setIsLightMode} />}
+      {view === 'dashboard' && <Dashboard setView={setView} session={session} isLightMode={isLightMode} setIsLightMode={setIsLightMode} />}
     </ClickSpark>
   );
 }

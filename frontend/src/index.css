@@ -72,3 +72,5 @@ body {
   pointer-events: none;
   z-index: -1;
 }
+html.light-theme { filter: invert(1) hue-rotate(180deg); }
+html.light-theme img, html.light-theme video, html.light-theme svg.un-invert { filter: invert(1) hue-rotate(180deg); }
