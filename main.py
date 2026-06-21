@@ -34,7 +34,11 @@ load_dotenv()
 app = FastAPI(title="Hybrid GraphRAG FastAPI SSE Wrapper")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "https://your-vercel-app-url.vercel.app",
+        "*"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
