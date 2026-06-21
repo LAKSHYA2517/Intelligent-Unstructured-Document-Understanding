@@ -37,7 +37,7 @@ A React web app talks to a FastAPI backend that wraps a hybrid GraphRAG engine: 
             │        └──▶ LLM entity/relation extraction → NetworkX   │
             │                                  (knowledge graph)      │
             │                                                         │
-            │  Query: retrieve + NVIDIA rerank + 1-hop subgraph       │
+            │  Query: retrieve + NVIDIA rerank + 2-hop subgraph       │
             │         → Llama-4 Maverick → grounded, cited answer     │
             └────────────────────────────────────────────────────────┘
 ```
@@ -141,7 +141,7 @@ A **semantic cache** (LRU, 128 entries, 0.88 similarity) replays cached answers 
 ##  How It Works
 
 1. **Ingest** — Docling extracts text, tables, and chart images. Charts are described by the vision model. Content is chunked, embedded into **ChromaDB**, and structured into a **NetworkX knowledge graph** (entities + relations extracted by the LLM, with deterministic entity resolution). `stream_ingest` makes the document queryable progressively.
-2. **Retrieve** — the query is embedded, top chunks are pulled from ChromaDB and **re-ranked**; a **1-hop subgraph** around the relevant entities adds relational context.
+2. **Retrieve** — the query is first expanded via **HyDE** (a hypothetical answer is generated and embedded), top chunks are pulled from ChromaDB and **re-ranked**; a **2-hop subgraph** around the relevant entities adds relational context.
 3. **Answer** — `answer_query_robust` feeds the fused context to **Llama-4 Maverick**, returns a grounded answer with citations, and **refuses gracefully** when the documents don't support an answer.
 
 ---
