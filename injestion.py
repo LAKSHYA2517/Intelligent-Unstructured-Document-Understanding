@@ -74,6 +74,15 @@ except ImportError:  # pragma: no cover
 
 load_dotenv()
 
+# nest_asyncio allows asyncio.run() to work inside Streamlit's already-running
+# Tornado event loop. Optional — asyncio.run() still works in most plain
+# script environments without it.
+try:
+    import nest_asyncio as _nest_asyncio
+    _nest_asyncio.apply()
+except ImportError:
+    pass
+
 
 # =============================================================================
 # Configuration
@@ -1083,6 +1092,27 @@ def copy_uploaded_pdf(uploaded_file: Any) -> Path:
     return target
 
 
+PIPELINE_PHASES = [
+    "Docling Parsing",
+    "VLM Chart Extraction",
+    "ChromaDB Vectorizing",
+    "NetworkX Graph Construction",
+]
+
+
+def resolve_chart_image_path(image_file: str) -> Path | None:
+    """Resolve chart image paths stored as absolute paths, workspace paths, or basenames."""
+    candidates = [
+        Path(image_file),
+        WORKSPACE / image_file,
+        IMAGE_DIR / Path(image_file).name,
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
 async def build_hybrid_index(
     api_key: str,
     pdf_path: str | Path | None = None,
@@ -1123,6 +1153,9 @@ async def build_hybrid_index(
             "No PDF was supplied and parsed_text_clean.md does not exist. "
             "Upload a PDF or run the Docling phase first."
         )
+    else:
+        status_callback("Docling Parsing (reused existing parsed_text_clean.md)")
+        status_callback("VLM Chart Extraction (reused existing nvidia_vision_report.md)")
 
     status_callback("Chunking parsed markdown and vision report")
     chunks, markdown_text, vision_report = build_document_chunks(
@@ -1163,16 +1196,25 @@ async def build_hybrid_index(
 # =============================================================================
 
 
+_PHASE_ICON: dict[str, str] = {
+    "pending": "⬜",
+    "running": "🔵",
+    "done": "✅",
+    "failed": "❌",
+    "skipped": "⏭️",
+}
+
+
 def run_streamlit_app() -> None:
     ensure_dependency("streamlit", st)
     ensure_dependency("pandas", pd)
 
     st.set_page_config(
         page_title="Hybrid GraphRAG Document Intelligence",
-        page_icon="",
+        page_icon="🧠",
         layout="wide",
     )
-    st.title("Hybrid GraphRAG Document Intelligence")
+    st.title("🧠 Hybrid GraphRAG Document Intelligence")
 
     with st.sidebar:
         st.header("Configuration")
@@ -1205,12 +1247,53 @@ def run_streamlit_app() -> None:
     build_disabled = uploaded_pdf is None and not can_build_from_existing
 
     if st.button("Build Hybrid RAG Index", type="primary", disabled=build_disabled):
+        # Define state and UI components BEFORE the try block so the except
+        # handler can safely reference them regardless of where the error lands.
+        phase_state: dict[str, str] = {phase: "pending" for phase in PIPELINE_PHASES}
+
+        st.markdown("**Live Status Tracking**")
+        phase_boxes = st.empty()
+
+        def render_phase_tracker() -> None:
+            with phase_boxes.container():
+                cols = st.columns(len(PIPELINE_PHASES))
+                for col, phase in zip(cols, PIPELINE_PHASES):
+                    state = phase_state[phase]
+                    icon = _PHASE_ICON.get(state, "⬜")
+                    label = f"{icon} **{phase}**\n\n{state.upper()}"
+                    if state == "running":
+                        col.info(label)
+                    elif state == "done":
+                        col.success(label)
+                    elif state == "failed":
+                        col.error(label)
+                    elif state == "skipped":
+                        col.warning(label)
+                    else:
+                        col.markdown(label)
+
+        render_phase_tracker()
+
         try:
             resolved_key = get_api_key(api_key)
             pdf_path = copy_uploaded_pdf(uploaded_pdf) if uploaded_pdf is not None else None
 
             with st.status("Starting pipeline...", expanded=True) as status:
                 def ui_status(message: str) -> None:
+                    for phase in PIPELINE_PHASES:
+                        if message.startswith(phase):
+                            if "reused existing" in message:
+                                phase_state[phase] = "skipped"
+                            else:
+                                for previous_phase in PIPELINE_PHASES:
+                                    if previous_phase == phase:
+                                        break
+                                    if phase_state[previous_phase] == "running":
+                                        phase_state[previous_phase] = "done"
+                                phase_state[phase] = "running"
+                            status.update(label=phase, state="running")
+                            render_phase_tracker()
+                            break
                     status.write(message)
 
                 index = asyncio.run(
@@ -1228,8 +1311,16 @@ def run_streamlit_app() -> None:
                 st.session_state.hybrid_index = index
                 st.session_state.nim_key = resolved_key
                 st.session_state.concurrency_limit = concurrency_limit
+                for phase in PIPELINE_PHASES:
+                    if phase_state[phase] == "running":
+                        phase_state[phase] = "done"
+                render_phase_tracker()
                 status.update(label="Pipeline complete", state="complete")
         except Exception as exc:
+            for phase in PIPELINE_PHASES:
+                if phase_state[phase] == "running":
+                    phase_state[phase] = "failed"
+            render_phase_tracker()
             st.error(f"Pipeline failed: {exc}")
 
     index: HybridIndex | None = st.session_state.hybrid_index
@@ -1242,6 +1333,10 @@ def run_streamlit_app() -> None:
     )
 
     with tab_chat:
+        st.caption(
+            "Hybrid query path: ChromaDB top-10 retrieval -> NVIDIA rerank top-3 -> "
+            "NetworkX local subgraph -> Llama 4 Maverick answer synthesis."
+        )
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
@@ -1256,8 +1351,8 @@ def run_streamlit_app() -> None:
                 with st.spinner("Retrieving vector chunks, expanding graph context, and reasoning..."):
                     try:
                         nim = NvidiaNIMClient(
-                            api_key=st.session_state.nim_key,
-                            concurrency_limit=st.session_state.concurrency_limit,
+                            api_key=st.session_state.get("nim_key") or get_api_key(api_key),
+                            concurrency_limit=st.session_state.get("concurrency_limit", DEFAULT_CONCURRENCY_LIMIT),
                             status_callback=lambda _: None,
                         )
                         result = asyncio.run(answer_query(user_query, index, nim))
@@ -1278,20 +1373,29 @@ def run_streamlit_app() -> None:
                         )
 
     with tab_context:
-        left, right = st.columns(2)
+        left, right = st.columns([1.05, 0.95], gap="large")
         with left:
             st.subheader("Parsed Markdown")
-            st.markdown(index.markdown_text or "_No markdown text available._")
+            st.text_area(
+                "Raw text markdown",
+                value=index.markdown_text or "No markdown text available.",
+                height=700,
+                label_visibility="collapsed",
+            )
         with right:
             st.subheader("Extracted Charts and Vision Descriptions")
             entries = parse_vision_report(index.vision_report)
             if not entries:
                 st.info("No chart summaries available.")
             for image_file, summary in entries:
-                st.markdown(f"**{Path(image_file).name}**")
-                if Path(image_file).exists():
-                    st.image(str(image_file), use_container_width=True)
-                st.write(summary)
+                with st.container():
+                    st.markdown(f"**{Path(image_file).name}**")
+                    resolved_image = resolve_chart_image_path(image_file)
+                    if resolved_image is not None:
+                        st.image(str(resolved_image), use_container_width=True)
+                    else:
+                        st.warning(f"Chart image file not found: {image_file}")
+                    st.write(summary)
 
     with tab_graph:
         st.subheader("Graph Density Statistics")
@@ -1308,10 +1412,23 @@ def run_streamlit_app() -> None:
         st.dataframe(pd.DataFrame([metrics]), use_container_width=True)
 
         st.subheader("Resolved Nodes")
-        st.dataframe(pd.DataFrame(graph_nodes_table(graph)), use_container_width=True)
+        node_rows = graph_nodes_table(graph)
+        st.dataframe(
+            pd.DataFrame(
+                node_rows,
+                columns=["node_id", "label", "node_type", "entity_type", "source"],
+            ),
+            use_container_width=True,
+            hide_index=True,
+        )
 
         st.subheader("Labeled Edges")
-        st.dataframe(pd.DataFrame(graph_edges_table(graph)), use_container_width=True)
+        edge_rows = graph_edges_table(graph)
+        st.dataframe(
+            pd.DataFrame(edge_rows, columns=["source", "relation", "target"]),
+            use_container_width=True,
+            hide_index=True,
+        )
 
 
 # =============================================================================
