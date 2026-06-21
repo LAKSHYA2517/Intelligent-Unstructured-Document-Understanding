@@ -45,7 +45,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
 
-
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
 
 import BorderGlow from './components/BorderGlow';
 
@@ -1396,7 +1396,7 @@ const Dashboard = ({ setView, session, isLightMode, setIsLightMode }) => {
     setMessages(prev => [...prev, { sender: 'ai', text: '', status: 'Connecting to backend...', citations: null }]);
 
     try {
-      const res = await fetch('http://localhost:8000/api/chat', {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: userQuery, agentic: false })
@@ -1629,7 +1629,7 @@ const Dashboard = ({ setView, session, isLightMode, setIsLightMode }) => {
                       formData.append('file', file);
 
                       try {
-                        const res = await fetch('http://localhost:8000/api/ingest', {
+                        const res = await fetch(`${API_BASE}/api/ingest`, {
                           method: 'POST',
                           body: formData
                         });
