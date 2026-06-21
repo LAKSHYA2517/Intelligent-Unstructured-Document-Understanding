@@ -42,6 +42,7 @@ import {
   Layers, Search, MessageSquare, Database, Globe, Cpu,
   X, ArrowLeft, Mail, BookOpen, Scale, FileCheck, Copy
 } from 'lucide-react';
+import { supabase } from './lib/supabaseClient';
 
 // --- MOCK DATA ---
 const mockDocs = [
@@ -265,7 +266,7 @@ const LandingPage = ({ setView }) => {
   const [showDemo, setShowDemo] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [footerModal, setFooterModal] = useState(null); // 'privacy' | 'terms' | 'docs' | 'contact' | null
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(null);
 
   // For Variable Proximity
   const containerRef = useRef(null);
@@ -386,12 +387,12 @@ const LandingPage = ({ setView }) => {
   };
 
   return (
-    <div className="landing-scroll relative bg-[#0f1923] overflow-x-hidden font-sans selection:bg-storm-300 selection:text-storm-900">
+    <div className="landing-scroll relative bg-black overflow-x-hidden font-sans selection:bg-storm-300 selection:text-storm-900">
 
       {/* Dot Field Background */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <DotField
-          glowColor="#0f1923"
+          glowColor="#000000"
           gradientFrom="#6A89A7"
           gradientTo="#88BDF2"
           dotRadius={2.0}
@@ -1057,22 +1058,32 @@ const LandingPage = ({ setView }) => {
                     <div className="space-y-5 text-storm-100/60 text-sm leading-relaxed">
                       <p>Have questions, feedback, or want to collaborate? Reach out to the team behind DocuMind.</p>
                       <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
-                        <h4 className="text-white font-semibold mb-3 flex items-center gap-2"><Mail size={16} style={{ color: '#fbbf24' }} /> Email</h4>
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <a href="mailto:ayush.kumarverma2024@vitstudent.ac.in" className="text-storm-300 hover:text-storm-100 transition-colors font-mono text-sm sm:text-base underline underline-offset-4 break-all">
-                            ayush.kumarverma2024@vitstudent.ac.in
-                          </a>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText("ayush.kumarverma2024@vitstudent.ac.in");
-                              setCopied(true);
-                              setTimeout(() => setCopied(false), 2000);
-                            }}
-                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-colors text-xs font-medium whitespace-nowrap"
-                          >
-                            {copied ? <CheckCircle2 size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                            {copied ? "Copied" : "Copy to Clipboard"}
-                          </button>
+                        <h4 className="text-white font-semibold mb-3 flex items-center gap-2"><Mail size={16} style={{ color: '#fbbf24' }} /> Emails</h4>
+                        <div className="flex flex-col gap-4">
+                          {[
+                            "ayush.kumarverma2024@vitstudent.ac.in",
+                            "aryan.nema2024@vitstudent.ac.in",
+                            "aditya.24bai10083@vitbhopal.ac.in",
+                            "lakshya.asnani2024@vitstudent.ac.in",
+                            "divyansh.saxena2024a@vitstudent.ac.in"
+                          ].map((email, idx) => (
+                            <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                              <a href={`mailto:${email}`} className="text-storm-300 hover:text-storm-100 transition-colors font-mono text-sm sm:text-base underline underline-offset-4 break-all">
+                                {email}
+                              </a>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(email);
+                                  setCopied(email);
+                                  setTimeout(() => setCopied(null), 2000);
+                                }}
+                                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-colors text-xs font-medium whitespace-nowrap"
+                              >
+                                {copied === email ? <CheckCircle2 size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                                {copied === email ? "Copied" : "Copy to Clipboard"}
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       </div>
                       <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
@@ -1178,8 +1189,10 @@ const LoginPage = ({ setView }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
-  const handleSignIn = (e) => {
+  const handleAuth = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -1191,31 +1204,41 @@ const LoginPage = ({ setView }) => {
       setError('Please enter your password.');
       return;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long.');
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
       return;
     }
 
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumbers = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-
-    if (!hasUpperCase || !hasLowerCase || !hasNumbers || !hasSpecialChar) {
-      setError('Password must contain at least 1 uppercase, 1 lowercase, 1 digit, and 1 special character.');
+    if (!supabase) {
+      setError('Supabase is not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.');
       return;
     }
 
-    // Validation passed, proceed to dashboard
-    setView('dashboard');
+    setLoading(true);
+
+    try {
+      if (isSignUp) {
+        const { error: signUpError } = await supabase.auth.signUp({ email, password });
+        if (signUpError) throw signUpError;
+        alert('Check your email for the confirmation link!');
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) throw signInError;
+        setView('dashboard');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative bg-[#0f1923]">
+    <div className="min-h-screen flex items-center justify-center p-4 relative bg-black">
       {/* Dot Field Background */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <DotField
-          glowColor="#0f1923"
+          glowColor="#000000"
           gradientFrom="#6A89A7"
           gradientTo="#88BDF2"
           dotRadius={2.0}
@@ -1287,7 +1310,7 @@ const LoginPage = ({ setView }) => {
             </motion.div>
           )}
 
-          <form onSubmit={handleSignIn} className="space-y-4">
+          <form onSubmit={handleAuth} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-storm-100 mb-1">
                 <BlurText text="Email" delay={30} animateBy="letters" />
@@ -1300,6 +1323,7 @@ const LoginPage = ({ setView }) => {
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-storm-900/50 border border-storm-500/30 rounded-lg py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-storm-300 transition-colors"
                   placeholder="analyst@enterprise.com"
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -1308,13 +1332,6 @@ const LoginPage = ({ setView }) => {
                 <label className="block text-sm font-medium text-storm-100">
                   <BlurText text="Password" delay={30} animateBy="letters" />
                 </label>
-                <button
-                  type="button"
-                  onClick={() => alert("Forgot password functionality coming soon!")}
-                  className="text-xs font-medium text-storm-300 hover:text-white transition-colors"
-                >
-                  Forgot password?
-                </button>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-storm-100/50" size={18} />
@@ -1324,16 +1341,27 @@ const LoginPage = ({ setView }) => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-storm-900/50 border border-storm-500/30 rounded-lg py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-storm-300 transition-colors"
                   placeholder="••••••••"
+                  disabled={loading}
                 />
               </div>
             </div>
             <button
               type="submit"
-              className="electric-border w-full text-[#0f1923] font-bold py-3 rounded-lg mt-6 transition-all shadow-lg hover:shadow-storm-300/25 hover:opacity-90 flex justify-center items-center gap-2"
+              disabled={loading}
+              className="electric-border w-full text-[#0f1923] font-bold py-3 rounded-lg mt-6 transition-all shadow-lg hover:shadow-storm-300/25 hover:opacity-90 flex justify-center items-center gap-2 disabled:opacity-50"
               style={{ background: 'linear-gradient(90deg, #6A89A7, #88BDF2)' }}
             >
-              <TextType text="Sign In" /> <ChevronRight size={18} />
+              {loading ? <Loader2 className="animate-spin" size={18} /> : <TextType text={isSignUp ? "Sign Up" : "Sign In"} />} {!loading && <ChevronRight size={18} />}
             </button>
+            <div className="text-center mt-4">
+              <button
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="text-sm text-storm-300 hover:text-white transition-colors"
+              >
+                {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
+              </button>
+            </div>
           </form>
         </GlassCard>
       </motion.div>
@@ -1342,7 +1370,7 @@ const LoginPage = ({ setView }) => {
 };
 
 // 3. MAIN DASHBOARD
-const Dashboard = ({ setView }) => {
+const Dashboard = ({ setView, session }) => {
   const [activeTab, setActiveTab] = useState('source');
   const [activeCitation, setActiveCitation] = useState(null);
   const [input, setInput] = useState('');
@@ -1366,11 +1394,11 @@ const Dashboard = ({ setView }) => {
   };
 
   return (
-    <div className="h-screen w-full flex flex-col bg-gradient-to-br from-[#0B1121] via-[#111A2E] to-[#0A192F] text-storm-100 p-2 gap-2 font-sans overflow-hidden relative">
+    <div className="h-screen w-full flex flex-col bg-black text-storm-100 p-2 gap-2 font-sans overflow-hidden relative">
       {/* Dot Field Background */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <DotField
-          glowColor="#0f1923"
+          glowColor="#000000"
           gradientFrom="#6A89A7"
           gradientTo="#88BDF2"
           dotRadius={2.0}
@@ -1380,19 +1408,7 @@ const Dashboard = ({ setView }) => {
 
       {/* TOP NAVBAR */}
       <div className="w-full h-14 bg-black/20 rounded-xl border border-white/10 flex items-center justify-between px-4 shrink-0 relative">
-        {/* Strands wrapper constrained strictly to the middle space, avoiding icons */}
-        <div 
-          className="absolute inset-y-0 left-[140px] right-[80px] pointer-events-none z-0 overflow-hidden"
-          style={{ WebkitMaskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent)' }}
-        >
-          {/* Strands stretched aggressively to maintain the continuous laser look */}
-          <div 
-            className="absolute top-1/2 left-1/2 w-[400px] h-[400px]"
-            style={{ transform: 'translate(-50%, -50%) scaleX(4)' }}
-          >
-            <Strands />
-          </div>
-        </div>
+
 
         <button
           onClick={() => setView('landing')}
@@ -1422,11 +1438,14 @@ const Dashboard = ({ setView }) => {
               >
                 <div className="p-4 border-b border-white/10 bg-white/5">
                   <p className="text-white font-bold text-lg">Analyst User</p>
-                  <p className="text-storm-100/60 text-xs font-mono mt-1">analyst@enterprise.com</p>
+                  <p className="text-storm-100/60 text-xs font-mono mt-1">{session?.user?.email || 'analyst@enterprise.com'}</p>
                 </div>
                 <div className="p-2">
                   <button
-                    onClick={() => setView('landing')}
+                    onClick={async () => {
+                      if (supabase) await supabase.auth.signOut();
+                      setView('landing');
+                    }}
                     className="w-full text-left px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-400/10 rounded-lg transition-colors flex items-center gap-2"
                   >
                     <X size={16} /> Log Out
@@ -1758,6 +1777,29 @@ const Dashboard = ({ setView }) => {
 // --- APP WRAPPER ---
 export default function App() {
   const [view, setView] = useState('landing'); // 'landing', 'login', 'dashboard'
+  const [session, setSession] = useState(null);
+
+  useEffect(() => {
+    if (!supabase) return;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session && view === 'login') setView('dashboard');
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) {
+        setView('dashboard');
+      } else if (view === 'dashboard') {
+        setView('landing');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [view]);
 
   return (
     <ClickSpark sparkColor="#cf9eff" sparkSize={10} sparkRadius={15} sparkCount={8} duration={400}>
@@ -1766,7 +1808,7 @@ export default function App() {
       </div>
       {view === 'landing' && <LandingPage setView={setView} />}
       {view === 'login' && <LoginPage setView={setView} />}
-      {view === 'dashboard' && <Dashboard setView={setView} />}
+      {view === 'dashboard' && <Dashboard setView={setView} session={session} />}
     </ClickSpark>
   );
 }
