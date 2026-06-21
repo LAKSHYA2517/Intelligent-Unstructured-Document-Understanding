@@ -1,3 +1,11 @@
+---
+title: DocuMind GraphRAG
+emoji: 🧠
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: false
+---
 # Intelligent Unstructured Document Understanding
 
 **Multi-Modal Semantic Integration for Intelligent Unstructured Document Understanding** — a full-stack **GraphRAG** system that turns complex PDFs (text, tables, charts) into an explorable knowledge graph and answers natural-language questions with **grounded, streamed, cited** responses.
