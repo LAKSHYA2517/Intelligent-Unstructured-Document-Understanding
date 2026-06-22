@@ -44,6 +44,8 @@ import {
   Sun, Moon, Maximize2, Minimize2
 } from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
+import { LandingPage, LoginPage } from './MarketingPages';
+import { DashboardWorkspace } from './DashboardWorkspace';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
 
@@ -245,7 +247,7 @@ const PipelineConnector = ({ delay }) => {
 };
 
 // 1. LANDING PAGE
-const LandingPage = ({ setView, isLightMode, setIsLightMode }) => {
+const LegacyLandingPage = ({ setView, isLightMode, setIsLightMode }) => {
   const [scrollY, setScrollY] = useState(0);
   const [showDemo, setShowDemo] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -406,7 +408,7 @@ const LandingPage = ({ setView, isLightMode, setIsLightMode }) => {
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-storm-300 to-storm-500 flex items-center justify-center shadow-lg shadow-storm-300/20">
               <BrainCircuit size={20} className="text-white" />
             </div>
-            <ShinyText text="DocuMind" disabled={false} speed={3} className="text-white font-bold text-lg tracking-tight hidden sm:inline" />
+            <ShinyText text="EvidentAI" disabled={false} speed={3} className="text-white font-bold text-lg tracking-tight hidden sm:inline" />
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -685,7 +687,7 @@ const LandingPage = ({ setView, isLightMode, setIsLightMode }) => {
       {/* ====== HOW IT WORKS ====== */}
       <section className="relative z-10 py-24 px-6 overflow-hidden">
         <div className="absolute top-1/2 left-0 w-full -translate-y-1/2 opacity-[0.03] pointer-events-none z-0">
-          <ScrollVelocity texts={['HOW IT WORKS • DOCUMIND • PIPELINE • ANALYSIS • ']} />
+          <ScrollVelocity texts={['HOW IT WORKS • EvidentAI • PIPELINE • ANALYSIS • ']} />
         </div>
         <div className="max-w-5xl mx-auto relative z-10">
           <motion.div
@@ -834,7 +836,7 @@ const LandingPage = ({ setView, isLightMode, setIsLightMode }) => {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-storm-300 to-storm-500 flex items-center justify-center relative z-10">
               <BrainCircuit size={16} className="text-white" />
             </div>
-            <span className="text-white font-bold relative z-10">DocuMind</span>
+            <span className="text-white font-bold relative z-10">EvidentAI</span>
             <span className="text-storm-100/30 text-sm">© 2026</span>
           </div>
           <div className="flex items-center gap-6 text-storm-100/40 text-sm">
@@ -879,17 +881,17 @@ const LandingPage = ({ setView, isLightMode, setIsLightMode }) => {
                     <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-storm-300 to-storm-500 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-storm-300/20">
                       <BrainCircuit size={32} className="text-white" />
                     </div>
-                    <h2 className="text-3xl font-black text-white mb-3">Welcome to DocuMind</h2>
+                    <h2 className="text-3xl font-black text-white mb-3">Welcome to EvidentAI</h2>
                     <p className="text-storm-100/60">Intelligent Unstructured Document Understanding powered by Multi-Modal AI</p>
                   </div>
 
                   {/* What it does */}
                   <div className="space-y-4 mb-8">
                     <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                      <Sparkles size={18} style={{ color: '#88BDF2' }} /> What does DocuMind do?
+                      <Sparkles size={18} style={{ color: '#88BDF2' }} /> What does EvidentAI do?
                     </h3>
                     <p className="text-storm-100/60 text-sm leading-relaxed">
-                      DocuMind uses advanced multi-modal AI to parse, understand, and connect information from your unstructured documents — including PDFs, Word files, scanned images, charts, and tables. It builds a semantic knowledge graph from your documents so you can ask questions in plain English and get cited, explainable answers.
+                      EvidentAI uses advanced multi-modal AI to parse, understand, and connect information from your unstructured documents — including PDFs, Word files, scanned images, charts, and tables. It builds a semantic knowledge graph from your documents so you can ask questions in plain English and get cited, explainable answers.
                     </p>
                   </div>
 
@@ -989,9 +991,9 @@ const LandingPage = ({ setView, isLightMode, setIsLightMode }) => {
                       <h2 className="text-2xl font-bold text-white">Privacy Policy</h2>
                     </div>
                     <div className="space-y-4 text-storm-100/60 text-sm leading-relaxed">
-                      <p><strong className="text-white">Data Protection:</strong> All documents uploaded to DocuMind are processed with end-to-end encryption. We do not store your documents after processing unless explicitly requested.</p>
+                      <p><strong className="text-white">Data Protection:</strong> All documents uploaded to EvidentAI are processed with end-to-end encryption. We do not store your documents after processing unless explicitly requested.</p>
                       <p><strong className="text-white">No Third-Party Sharing:</strong> Your data is never shared with third parties, advertisers, or external services. All processing happens within your secure tenant boundary.</p>
-                      <p><strong className="text-white">SOC-2 Compliance:</strong> DocuMind is fully SOC-2 Type II compliant, ensuring enterprise-grade security controls, audit logging, and access management.</p>
+                      <p><strong className="text-white">SOC-2 Compliance:</strong> EvidentAI is fully SOC-2 Type II compliant, ensuring enterprise-grade security controls, audit logging, and access management.</p>
                       <p><strong className="text-white">Data Retention:</strong> We follow a zero-retention policy by default. Uploaded documents are purged from our servers immediately after processing. Users may opt-in to persistent storage for workspace continuity.</p>
                       <p><strong className="text-white">User Rights:</strong> You have the right to access, correct, or delete your personal data at any time. Contact us to exercise these rights.</p>
                     </div>
@@ -1008,11 +1010,11 @@ const LandingPage = ({ setView, isLightMode, setIsLightMode }) => {
                       <h2 className="text-2xl font-bold text-white">Terms of Service</h2>
                     </div>
                     <div className="space-y-4 text-storm-100/60 text-sm leading-relaxed">
-                      <p><strong className="text-white">Acceptance:</strong> By accessing or using DocuMind, you agree to be bound by these Terms of Service. If you do not agree, do not use the platform.</p>
-                      <p><strong className="text-white">Use License:</strong> DocuMind grants you a limited, non-exclusive, non-transferable license to use the platform for lawful document analysis purposes.</p>
-                      <p><strong className="text-white">Prohibited Uses:</strong> You may not use DocuMind to process classified government documents, illegal content, or content that violates intellectual property rights of others without authorization.</p>
-                      <p><strong className="text-white">Intellectual Property:</strong> You retain full ownership of all documents you upload. DocuMind does not claim any rights over your content. The platform, its UI, AI models, and branding are owned by DocuMind.</p>
-                      <p><strong className="text-white">Limitation of Liability:</strong> DocuMind is provided "as-is" for hackathon demonstration purposes. AI-generated outputs should be verified for accuracy before making critical decisions.</p>
+                      <p><strong className="text-white">Acceptance:</strong> By accessing or using EvidentAI, you agree to be bound by these Terms of Service. If you do not agree, do not use the platform.</p>
+                      <p><strong className="text-white">Use License:</strong> EvidentAI grants you a limited, non-exclusive, non-transferable license to use the platform for lawful document analysis purposes.</p>
+                      <p><strong className="text-white">Prohibited Uses:</strong> You may not use EvidentAI to process classified government documents, illegal content, or content that violates intellectual property rights of others without authorization.</p>
+                      <p><strong className="text-white">Intellectual Property:</strong> You retain full ownership of all documents you upload. EvidentAI does not claim any rights over your content. The platform, its UI, AI models, and branding are owned by EvidentAI.</p>
+                      <p><strong className="text-white">Limitation of Liability:</strong> EvidentAI is provided "as-is" for hackathon demonstration purposes. AI-generated outputs should be verified for accuracy before making critical decisions.</p>
                     </div>
                   </div>
                 )}
@@ -1028,7 +1030,7 @@ const LandingPage = ({ setView, isLightMode, setIsLightMode }) => {
                     </div>
                     <div className="space-y-4 text-storm-100/60 text-sm leading-relaxed">
                       <p><strong className="text-white">Getting Started:</strong> Sign in, then drag and drop your documents into the Workspace panel on the left side of the dashboard. Supported formats include PDF, DOCX, PNG, JPG, XLSX, CSV, TXT, and PPTX.</p>
-                      <p><strong className="text-white">Document Parsing:</strong> Once uploaded, DocuMind's multi-modal AI engine automatically detects document type, extracts text, tables, charts, and images, and builds a semantic knowledge graph.</p>
+                      <p><strong className="text-white">Document Parsing:</strong> Once uploaded, EvidentAI's multi-modal AI engine automatically detects document type, extracts text, tables, charts, and images, and builds a semantic knowledge graph.</p>
                       <p><strong className="text-white">Asking Questions:</strong> Use the central chat panel to ask questions in natural language. You can ask multi-hop questions that span multiple documents. Answers include citation chips linking to source data.</p>
                       <p><strong className="text-white">Source Viewer:</strong> Click any citation chip in the chat to view the extracted source — tables, paragraphs, or images — in the right-side Source Viewer panel.</p>
                       <p><strong className="text-white">Knowledge Graph:</strong> Switch to the "Knowledge Graph" tab in the right panel to visualize semantic relationships between concepts extracted from your documents.</p>
@@ -1047,7 +1049,7 @@ const LandingPage = ({ setView, isLightMode, setIsLightMode }) => {
                       <h2 className="text-2xl font-bold text-white">Contact Us</h2>
                     </div>
                     <div className="space-y-5 text-storm-100/60 text-sm leading-relaxed">
-                      <p>Have questions, feedback, or want to collaborate? Reach out to the team behind DocuMind.</p>
+                      <p>Have questions, feedback, or want to collaborate? Reach out to the team behind EvidentAI.</p>
                       <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
                         <h4 className="text-white font-semibold mb-3 flex items-center gap-2"><Mail size={16} style={{ color: '#fbbf24' }} /> Emails</h4>
                         <div className="flex flex-col gap-4">
@@ -1176,7 +1178,7 @@ const LandingPage = ({ setView, isLightMode, setIsLightMode }) => {
   );
 };
 // 2. LOGIN PAGE
-const LoginPage = ({ setView, isLightMode, setIsLightMode }) => {
+const LegacyLoginPage = ({ setView, isLightMode, setIsLightMode }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -1370,7 +1372,7 @@ const LoginPage = ({ setView, isLightMode, setIsLightMode }) => {
 };
 
 // 3. MAIN DASHBOARD
-const Dashboard = ({ setView, session, isLightMode, setIsLightMode }) => {
+const LegacyDashboard = ({ setView, session, isLightMode, setIsLightMode }) => {
   const [activeTab, setActiveTab] = useState('source');
   const [activeCitation, setActiveCitation] = useState(null);
   const [graphData, setGraphData] = useState(null);
@@ -1520,7 +1522,7 @@ const Dashboard = ({ setView, session, isLightMode, setIsLightMode }) => {
           className="flex items-center gap-2 text-white font-bold hover:text-storm-300 transition-colors z-10 relative"
         >
           <BrainCircuit size={20} className="text-storm-300" />
-          <GlitchText text="DocuMind" speed={0.5} />
+          <GlitchText text="EvidentAI" speed={0.5} />
           <span className="text-xs bg-storm-300/20 text-storm-300 px-2 py-0.5 rounded-md ml-1 font-semibold border border-storm-300/30">Home</span>
         </button>
 
@@ -2080,8 +2082,10 @@ export default function App() {
   useEffect(() => {
     if (isLightMode) {
       document.documentElement.classList.add('light-theme');
+      document.documentElement.dataset.theme = 'light';
     } else {
       document.documentElement.classList.remove('light-theme');
+      document.documentElement.dataset.theme = 'dark';
     }
   }, [isLightMode]);
 
@@ -2108,13 +2112,10 @@ export default function App() {
   }, []);
 
   return (
-    <ClickSpark sparkColor="#cf9eff" sparkSize={10} sparkRadius={15} sparkCount={8} duration={400}>
-      <div className="fixed inset-0 z-50 pointer-events-none">
-        <FluidGlass />
-      </div>
+    <div>
       {view === 'landing' && <LandingPage setView={setView} isLightMode={isLightMode} setIsLightMode={setIsLightMode} />}
       {view === 'login' && <LoginPage setView={setView} isLightMode={isLightMode} setIsLightMode={setIsLightMode} />}
-      {view === 'dashboard' && <Dashboard setView={setView} session={session} isLightMode={isLightMode} setIsLightMode={setIsLightMode} />}
-    </ClickSpark>
+      {view === 'dashboard' && <DashboardWorkspace setView={setView} session={session} isLightMode={isLightMode} setIsLightMode={setIsLightMode} />}
+    </div>
   );
 }

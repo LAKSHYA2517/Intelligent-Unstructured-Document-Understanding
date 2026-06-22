@@ -9,3 +9,4 @@ chroma_store/
 extracted_charts/
 parsed_text_clean.md
 nvidia_vision_report.md
+.venv

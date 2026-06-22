@@ -763,6 +763,10 @@ def build_document_chunks(
     for filename, summary in parse_vision_report(vision_report):
         sequence += 1
         content = f"Chart/Image file: {filename}\n\nVision summary:\n{summary}".strip()
+        page_range = None
+        match = re.search(r"page[s]?[_-](\d+)(?:[_-]to[_-](\d+))?", filename, flags=re.IGNORECASE)
+        if match:
+            page_range = match.group(1) if not match.group(2) else f"{match.group(1)}-{match.group(2)}"
         chunks.append(
             DocumentChunk(
                 chunk_id=stable_chunk_id(f"{text_source}:chart", sequence, content),
@@ -771,7 +775,7 @@ def build_document_chunks(
                 content=content,
                 title=Path(filename).name,
                 sequence=sequence,
-                metadata={"image_file": filename},
+                metadata={"image_file": filename, **({"page_range": page_range} if page_range else {})},
             )
         )
 
@@ -1253,6 +1257,12 @@ def build_sources_list(
     """Build the explainability 'sources' list: one entry per [S#] marker."""
     sources: list[dict[str, Any]] = []
     for i, (chunk, score) in enumerate(ranked_chunks):
+        page = (
+            chunk.metadata.get("page")
+            or chunk.metadata.get("page_number")
+            or chunk.metadata.get("page_range")
+            or ""
+        )
         sources.append(
             {
                 "marker": f"S{i + 1}",
@@ -1261,8 +1271,11 @@ def build_sources_list(
                 "title": chunk.title,
                 "content_type": chunk.content_type,
                 "sequence": chunk.sequence,
+                "page": page,
+                "metadata": chunk.metadata,
                 "rerank_score": float(score),
                 "snippet": truncate_text(chunk.content, 320),
+                "content": chunk.content,
             }
         )
     return sources
@@ -1317,6 +1330,12 @@ async def synthesize_cited_answer(
 
     prompt = f"""
 You are an enterprise Hybrid GraphRAG reasoning engine.
+
+Every response must use these sections exactly:
+Summary
+Key Findings
+Evidence
+Sources
 
 Use ONLY the provided context (vector chunks + knowledge graph). If the context
 lacks the answer, say so explicitly instead of guessing. Do not speculate.
@@ -1841,6 +1860,7 @@ def chunk_markdown_text(
     start_sequence: int = 0,
     text_chunk_chars: int = DEFAULT_TEXT_CHUNK_CHARS,
     text_chunk_overlap: int = DEFAULT_TEXT_CHUNK_OVERLAP,
+    page_range: str | None = None,
 ) -> tuple[list[DocumentChunk], int]:
     """Build text DocumentChunks from an in-memory markdown string."""
     chunks: list[DocumentChunk] = []
@@ -1857,6 +1877,7 @@ def chunk_markdown_text(
                     content=content,
                     title=title,
                     sequence=sequence,
+                    metadata={"page_range": page_range} if page_range else {},
                 )
             )
     return chunks, sequence
@@ -1956,6 +1977,7 @@ async def stream_ingest(
             new_chunks, sequence = chunk_markdown_text(
                 md, source_name, start_sequence=sequence,
                 text_chunk_chars=text_chunk_chars, text_chunk_overlap=text_chunk_overlap,
+                page_range=f"{start_page}-{end_page}" if start_page != end_page else str(start_page),
             )
             if not new_chunks:
                 continue

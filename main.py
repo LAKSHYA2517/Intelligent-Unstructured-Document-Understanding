@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from injestion import (
@@ -39,6 +40,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+uploads_dir = Path("backend/uploads")
+if uploads_dir.exists():
+    app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 hybrid_index: Optional[HybridIndex] = None
 index_lock = asyncio.Lock()
@@ -182,6 +186,144 @@ async def ingest_pdf(file: UploadFile = File(...)) -> dict[str, Any]:
     }
 
 
+@app.post("/api/ingest/stream")
+async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF uploads are supported.")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded PDF is empty.")
+
+    temp_path = Path(tempfile.mktemp(suffix=".pdf"))
+    await asyncio.to_thread(temp_path.write_bytes, content)
+    source_name = file.filename
+
+    async def event_generator() -> Any:
+        api_key = resolve_api_key()
+        event_queue: asyncio.Queue[tuple[str, dict[str, Any]]] = asyncio.Queue()
+
+        def on_event(kind: str, **info: Any) -> None:
+            event_queue.put_nowait((kind, info))
+
+        async def run_ingest() -> HybridIndex:
+            global hybrid_index
+            async with index_lock:
+                nim = NvidiaNIMClient(
+                    api_key=api_key,
+                    concurrency_limit=DEFAULT_CONCURRENCY_LIMIT,
+                    status_callback=lambda message: on_event("status", message=message),
+                )
+                hybrid_index = await stream_ingest(
+                    pdf_path=temp_path,
+                    nim=nim,
+                    on_event=on_event,
+                    source_name=source_name,
+                    index=hybrid_index,
+                    chunk_size_pages=5,
+                    text_chunk_chars=DEFAULT_TEXT_CHUNK_CHARS,
+                    text_chunk_overlap=DEFAULT_TEXT_CHUNK_OVERLAP,
+                )
+                return hybrid_index
+
+        yield sse_event("progress", {"stage": "Uploading", "progress": 8, "source": source_name})
+        yield sse_event("progress", {"stage": "Parsing", "progress": 18, "source": source_name})
+        task = asyncio.create_task(run_ingest())
+        last_stage = "Parsing"
+        emitted_stages: set[str] = {"Uploading", "Parsing"}
+
+        try:
+            while not task.done() or not event_queue.empty():
+                try:
+                    kind, info = await asyncio.wait_for(event_queue.get(), timeout=0.25)
+                except asyncio.TimeoutError:
+                    continue
+
+                if kind == "indexed":
+                    if "OCR" not in emitted_stages:
+                        emitted_stages.add("OCR")
+                        yield sse_event(
+                            "progress",
+                            {
+                                "stage": "OCR",
+                                "progress": 30,
+                                "source": source_name,
+                                "message": "OCR check complete",
+                            },
+                        )
+                    last_stage = "Embedding Generation"
+                    emitted_stages.add(last_stage)
+                    yield sse_event(
+                        "progress",
+                        {
+                            "stage": "Embedding Generation",
+                            "progress": 45,
+                            "source": source_name,
+                            **info,
+                        },
+                    )
+                elif kind == "graph_updated":
+                    if "Entity Extraction" not in emitted_stages:
+                        emitted_stages.add("Entity Extraction")
+                        yield sse_event(
+                            "progress",
+                            {
+                                "stage": "Entity Extraction",
+                                "progress": 62,
+                                "source": source_name,
+                                **info,
+                            },
+                        )
+                    last_stage = "Knowledge Graph Construction"
+                    emitted_stages.add(last_stage)
+                    yield sse_event(
+                        "progress",
+                        {
+                            "stage": "Knowledge Graph Construction",
+                            "progress": 72,
+                            "source": source_name,
+                            **info,
+                        },
+                    )
+                elif kind == "status":
+                    message = str(info.get("message", ""))
+                    if "ocr" in message.lower():
+                        last_stage = "OCR"
+                    elif "entity" in message.lower():
+                        last_stage = "Entity Extraction"
+                    emitted_stages.add(last_stage)
+                    yield sse_event("progress", {"stage": last_stage, "progress": 55, "source": source_name, **info})
+                elif kind == "done":
+                    emitted_stages.add("Ready")
+                    yield sse_event(
+                        "progress",
+                        {
+                            "stage": "Ready",
+                            "progress": 100,
+                            "source": source_name,
+                            **info,
+                        },
+                    )
+
+            index = await task
+            yield sse_event(
+                "done",
+                {
+                    "status": "indexed",
+                    "sources": index.source_names(),
+                    "chunk_count": len(index.chunks),
+                    "node_count": index.graph.number_of_nodes(),
+                    "edge_count": index.graph.number_of_edges(),
+                },
+            )
+        except Exception as exc:
+            yield sse_event("error", {"message": str(exc), "stage": last_stage, "source": source_name})
+        finally:
+            temp_path.unlink(missing_ok=True)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
 @app.post("/api/chat")
 async def chat_stream(request: ChatRequest) -> StreamingResponse:
     if not request.query.strip():
@@ -276,3 +418,4 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+print("KEY PREFIX =", os.getenv("NVIDIA_API_KEY", "")[:15])
