@@ -85,23 +85,36 @@ const parseSseChunk = (chunk) => {
 };
 
 const normalizeSourceType = (source = {}) => {
-  const text = `${source.content_type || ''} ${source.title || ''} ${source.content || source.snippet || ''}`.toLowerCase();
-  if (/table|\|[-:\s|]+\|/.test(text)) return 'table';
-  if (source.metadata?.image_file || /chart|graph|figure|image|png|jpg|jpeg/.test(text)) return /chart|graph/.test(text) ? 'chart' : 'image';
+  const type = String(source.content_type || '').toLowerCase();
+  const content = String(source.content || source.snippet || '').toLowerCase();
+  const title = String(source.title || '').toLowerCase();
+  const tableLike = /\|[-:\s|]+\|/.test(content) || /\n\|/.test(content) || /<table\b/i.test(content) || /<tr\b/i.test(content) || /<td\b/i.test(content);
+  if (type.includes('table') || tableLike) return 'table';
+  const hasImagePlaceholder = /<!--\s*image\s*-->/.test(content) || /<!--\s*figure\s*-->/.test(content) || /<img\b/i.test(content);
+  const hasChartPlaceholder = /<!--\s*chart\s*-->/.test(content) || /<!--\s*graph\s*-->/.test(content) || /<svg\b/.test(content);
+  const chartLike = type.includes('chart') || type.includes('figure') || title.match(/\b(chart|graph|figure)\b/) || content.match(/\b(chart|graph|figure)\b/) || content.includes('chart/image file') || hasChartPlaceholder;
+  const imageLike = type.includes('image') || source.metadata?.image_file || title.match(/\.(png|jpg|jpeg)$/i) || content.match(/\.(png|jpg|jpeg)/i) || hasImagePlaceholder;
+  if (chartLike) return 'chart';
+  if (imageLike) return 'image';
   return 'text';
 };
 
 const citationLabel = (source = {}) => {
-  const title = source.title || '';
-  const contentType = source.content_type || '';
+  const title = String(source.title || '').trim();
+  const content = String(source.content || source.snippet || '').trim();
   if (source.page) return String(source.page).toLowerCase().includes('page') ? source.page : `Page ${source.page}`;
-  const tableMatch = title.match(/table\s*([\w.-]+)/i) || (source.content || source.snippet || '').match(/table\s*([\w.-]+)/i);
-  if (tableMatch) return `Table ${tableMatch[1]}`;
-  if (title) return title.length > 26 ? `${title.slice(0, 23)}...` : title;
+  const tableMatch = title.match(/table\s*([\w.-]+)/i) || content.match(/table\s*([\w.-]+)/i);
+  if (tableMatch && tableMatch[1]) return `Table ${tableMatch[1]}`;
+  const graphMatch = title.match(/\b(?:graph|figure|chart)\s*([\w.-]+)/i) || content.match(/\b(?:graph|figure|chart)\s*([\w.-]+)/i);
+  if (graphMatch && graphMatch[0]) return graphMatch[0].trim();
   if (source.sequence) return `Section ${source.sequence}`;
-  if (/financial|statement/i.test(`${title} ${contentType}`)) return 'Financial Statement';
-  if (/annual|report/i.test(`${title} ${source.source}`)) return 'Annual Report';
-  return source.source || source.marker || 'Source';
+  if (/annual|report/i.test(`${title} ${source.source || ''}`)) return 'Annual Report';
+  if (/financial statement/i.test(`${title} ${content}`)) return 'Financial Statement';
+  const sourceName = String(source.source || '').trim();
+  if (sourceName && sourceName.toLowerCase() !== 'document') return sourceName.length > 26 ? `${sourceName.slice(0, 23)}...` : sourceName;
+  if (title && title.toLowerCase() !== 'document') return title.length > 26 ? `${title.slice(0, 23)}...` : title;
+  if (source.marker) return source.marker;
+  return 'Source';
 };
 
 const cleanEvidenceText = (text = '') => text
@@ -121,10 +134,31 @@ const parseMarkdownTable = (text = '') => {
   return { headers: rows[0], rows: rows.slice(1) };
 };
 
+const parseHtmlTable = (text = '') => {
+  const html = text.replace(/\n/g, ' ');
+  const tableMatch = html.match(/<table[\s\S]*?<\/table>/i);
+  if (!tableMatch) return null;
+
+  const rowMatches = Array.from(tableMatch[0].matchAll(/<tr[\s\S]*?<\/tr>/gi));
+  if (!rowMatches.length) return null;
+
+  const rows = rowMatches
+    .map((rowMatch) => {
+      const cellMatches = Array.from(rowMatch[0].matchAll(/<(th|td)[^>]*>([\s\S]*?)<\/(?:th|td)>/gi));
+      return cellMatches.map(([, , cell]) => cleanEvidenceText(cell.replace(/<[^>]+>/g, '')));
+    })
+    .filter((row) => row.length > 0);
+
+  if (rows.length < 2) return null;
+  return { headers: rows[0], rows: rows.slice(1) };
+};
+
 const confidenceLabel = (value) => {
   const score = Number(value);
-  if (!Number.isFinite(score) || score < 0 || score > 1) return null;
-  return `${Math.round(score * 100)}%`;
+  if (!Number.isFinite(score) || score < 0) return null;
+  if (score <= 1) return `${Math.round(score * 100)}%`;
+  if (score <= 100) return `${Math.round(score)}%`;
+  return null;
 };
 
 const pageLabel = (page) => {
@@ -236,6 +270,7 @@ const CitationButton = ({ citation, theme, onClick }) => (
 
 const SourceViewer = ({ citation, theme }) => {
   const [zoom, setZoom] = useState(1);
+  const [fitToContainer, setFitToContainer] = useState(true);
   if (!citation) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-center" style={{ color: theme.secondary }}>
@@ -247,7 +282,10 @@ const SourceViewer = ({ citation, theme }) => {
 
   const type = citation.type || normalizeSourceType(citation);
   const content = citation.content || citation.snippet || '';
-  const table = type === 'table' ? parseMarkdownTable(content) : null;
+  const table = parseMarkdownTable(content) || parseHtmlTable(content);
+  const hasTable = Boolean(table);
+  const imageFile = citation.metadata?.image_file;
+  const imageSrc = imageFile ? `${API_BASE}/uploads/${encodeURIComponent(imageFile)}` : null;
   const confidence = confidenceLabel(citation.confidence);
   const metadata = [
     ['Document', citation.source || citation.title],
@@ -270,6 +308,7 @@ const SourceViewer = ({ citation, theme }) => {
             <div className="flex gap-1">
               <IconButton title="Zoom out" onClick={() => setZoom((value) => Math.max(0.5, value - 0.2))} style={{ borderColor: theme.softBorder, color: theme.secondary }}><ZoomOut size={15} /></IconButton>
               <IconButton title="Zoom in" onClick={() => setZoom((value) => Math.min(2.5, value + 0.2))} style={{ borderColor: theme.softBorder, color: theme.secondary }}><ZoomIn size={15} /></IconButton>
+              <IconButton title="Fit to container" onClick={() => setFitToContainer((value) => !value)} style={{ borderColor: theme.softBorder, color: theme.secondary }}><Maximize2 size={15} /></IconButton>
             </div>
           )}
         </div>
@@ -284,7 +323,7 @@ const SourceViewer = ({ citation, theme }) => {
       </div>
 
       <div className="rounded-2xl border p-3" style={{ borderColor: theme.softBorder, background: theme.surface }}>
-        {table ? (
+        {hasTable ? (
           <div className="max-h-[520px] overflow-auto">
             <table className="min-w-full border-collapse text-left text-xs">
               <thead>
@@ -297,16 +336,25 @@ const SourceViewer = ({ citation, theme }) => {
               </tbody>
             </table>
           </div>
-        ) : type === 'image' && citation.metadata?.image_file ? (
-          <div className="overflow-auto">
-            <img src={`${API_BASE}/uploads/${citation.metadata.image_file}`} alt={citation.title || 'Source image'} style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }} />
+        ) : imageSrc ? (
+          <div className="overflow-auto rounded-2xl border" style={{ borderColor: theme.softBorder }}>
+            <img
+              src={imageSrc}
+              alt={citation.title || 'Source image'}
+              className="w-full"
+              style={{
+                transform: fitToContainer ? 'none' : `scale(${zoom})`,
+                transformOrigin: 'top left',
+                maxWidth: '100%',
+              }}
+            />
           </div>
         ) : type === 'chart' ? (
           <div className="space-y-3">
-            <div className="h-32 rounded-xl border p-3" style={{ borderColor: theme.softBorder }}>
-              <svg viewBox="0 0 240 100" className="h-full w-full">
-                {[34, 62, 44, 78, 55].map((height, index) => <rect key={index} x={18 + index * 42} y={90 - height} width="24" height={height} rx="3" fill={theme.accent} opacity={0.35 + index * 0.1} />)}
-              </svg>
+            <div className="h-40 rounded-xl border p-3" style={{ borderColor: theme.softBorder }}>
+              <div className="flex h-full w-full items-center justify-center text-xs text-center" style={{ color: theme.secondary }}>
+                Chart preview unavailable. Refer to the source caption below.
+              </div>
             </div>
             <p className="text-sm leading-6" style={{ color: theme.secondary }}>{cleanEvidenceText(content)}</p>
           </div>

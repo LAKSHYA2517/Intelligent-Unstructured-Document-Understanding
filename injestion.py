@@ -763,6 +763,10 @@ def build_document_chunks(
     for filename, summary in parse_vision_report(vision_report):
         sequence += 1
         content = f"Chart/Image file: {filename}\n\nVision summary:\n{summary}".strip()
+        page_range = None
+        match = re.search(r"page[s]?[_-](\d+)(?:[_-]to[_-](\d+))?", filename, flags=re.IGNORECASE)
+        if match:
+            page_range = match.group(1) if not match.group(2) else f"{match.group(1)}-{match.group(2)}"
         chunks.append(
             DocumentChunk(
                 chunk_id=stable_chunk_id(f"{text_source}:chart", sequence, content),
@@ -771,7 +775,7 @@ def build_document_chunks(
                 content=content,
                 title=Path(filename).name,
                 sequence=sequence,
-                metadata={"image_file": filename},
+                metadata={"image_file": filename, **({"page_range": page_range} if page_range else {})},
             )
         )
 
