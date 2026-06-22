@@ -44,6 +44,8 @@ import {
   Sun, Moon, Maximize2, Minimize2
 } from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
+import { LandingPage, LoginPage } from './MarketingPages';
+import { DashboardWorkspace } from './DashboardWorkspace';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
 
@@ -245,7 +247,7 @@ const PipelineConnector = ({ delay }) => {
 };
 
 // 1. LANDING PAGE
-const LandingPage = ({ setView, isLightMode, setIsLightMode }) => {
+const LegacyLandingPage = ({ setView, isLightMode, setIsLightMode }) => {
   const [scrollY, setScrollY] = useState(0);
   const [showDemo, setShowDemo] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -1176,7 +1178,7 @@ const LandingPage = ({ setView, isLightMode, setIsLightMode }) => {
   );
 };
 // 2. LOGIN PAGE
-const LoginPage = ({ setView, isLightMode, setIsLightMode }) => {
+const LegacyLoginPage = ({ setView, isLightMode, setIsLightMode }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -1370,7 +1372,7 @@ const LoginPage = ({ setView, isLightMode, setIsLightMode }) => {
 };
 
 // 3. MAIN DASHBOARD
-const Dashboard = ({ setView, session, isLightMode, setIsLightMode }) => {
+const LegacyDashboard = ({ setView, session, isLightMode, setIsLightMode }) => {
   const [activeTab, setActiveTab] = useState('source');
   const [activeCitation, setActiveCitation] = useState(null);
   const [graphData, setGraphData] = useState(null);
@@ -2080,8 +2082,10 @@ export default function App() {
   useEffect(() => {
     if (isLightMode) {
       document.documentElement.classList.add('light-theme');
+      document.documentElement.dataset.theme = 'light';
     } else {
       document.documentElement.classList.remove('light-theme');
+      document.documentElement.dataset.theme = 'dark';
     }
   }, [isLightMode]);
 
@@ -2108,13 +2112,10 @@ export default function App() {
   }, []);
 
   return (
-    <ClickSpark sparkColor="#cf9eff" sparkSize={10} sparkRadius={15} sparkCount={8} duration={400}>
-      <div className="fixed inset-0 z-50 pointer-events-none">
-        <FluidGlass />
-      </div>
+    <div>
       {view === 'landing' && <LandingPage setView={setView} isLightMode={isLightMode} setIsLightMode={setIsLightMode} />}
       {view === 'login' && <LoginPage setView={setView} isLightMode={isLightMode} setIsLightMode={setIsLightMode} />}
-      {view === 'dashboard' && <Dashboard setView={setView} session={session} isLightMode={isLightMode} setIsLightMode={setIsLightMode} />}
-    </ClickSpark>
+      {view === 'dashboard' && <DashboardWorkspace setView={setView} session={session} isLightMode={isLightMode} setIsLightMode={setIsLightMode} />}
+    </div>
   );
 }
