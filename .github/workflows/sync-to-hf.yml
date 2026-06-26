@@ -22,6 +22,20 @@ jobs:
           rm -rf frontend/
           rm -rf backend/
           
+          # Create Hugging Face specific README.md with YAML configuration
+          cat << 'EOF' > README.md
+---
+title: EvidentAI GraphRAG
+emoji: 🧠
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: false
+---
+EOF
+          cat readme.md >> README.md
+          rm readme.md
+          
           # Initialize a fresh git repo
           git init
           git config user.name "GitHub Actions"
