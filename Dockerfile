@@ -4,8 +4,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend files
-COPY main.py injestion.py .env.example ./
+# Copy backend files and directories (layout, ontology, etc.)
+COPY . .
 
 # Expose Hugging Face default port
 EXPOSE 7860
