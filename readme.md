@@ -1,5 +1,5 @@
 ---
-title: DocuMind GraphRAG
+title: EvidentAI GraphRAG
 emoji: 🧠
 colorFrom: blue
 colorTo: purple
