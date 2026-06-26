@@ -1,0 +1,12 @@
+chromadb
+docling
+httpx
+networkx
+pandas
+python-dotenv
+pypdf
+streamlit
+streamlit-agraph
+fastapi
+uvicorn[standard]
+pydantic
