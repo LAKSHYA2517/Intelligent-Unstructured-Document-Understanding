@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-import queue
+import pickle
 import re
 import tempfile
 from collections import OrderedDict
@@ -47,12 +47,36 @@ uploads_dir = Path("backend/uploads")
 if uploads_dir.exists():
     app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
-hybrid_index: Optional[HybridIndex] = None
+# ─── FIX 1: Doc Store — Save/Load Index to Disk ──────────────
+INDEX_STORE_PATH = Path("index_store.pkl")
+
+def save_index(index: HybridIndex) -> None:
+    try:
+        with open(INDEX_STORE_PATH, "wb") as f:
+            pickle.dump(index, f)
+        print("✅ Index saved to disk")
+    except Exception as e:
+        print(f"❌ Could not save index: {e}")
+
+def load_index() -> Optional[HybridIndex]:
+    try:
+        if INDEX_STORE_PATH.exists():
+            with open(INDEX_STORE_PATH, "rb") as f:
+                index = pickle.load(f)
+            print("✅ Index loaded from disk")
+            return index
+    except Exception as e:
+        print(f"❌ Could not load index: {e}")
+    return None
+
+# Load index on startup automatically
+hybrid_index: Optional[HybridIndex] = load_index()
 index_lock = asyncio.Lock()
 
+# ─── FIX 4+6: Improved Constants ─────────────────────────────
 CACHE_MAX_ENTRIES = 128
-CACHE_SIMILARITY_THRESHOLD = 0.88
-CHUNK_SIZE = 256
+CACHE_SIMILARITY_THRESHOLD = 0.82
+CHUNK_SIZE = 8
 
 
 @dataclass
@@ -108,6 +132,10 @@ class SemanticCache:
                 self.store.popitem(last=False)
             self.store[normalized] = CacheEntry(query=query, result=result)
 
+    async def clear(self) -> None:
+        async with self._lock:
+            self.store.clear()
+
 
 semantic_cache = SemanticCache()
 
@@ -126,6 +154,15 @@ def sse_event(event: str, data: Any) -> str:
 
 def chunk_text(text: str, size: int = CHUNK_SIZE) -> list[str]:
     return [text[i : i + size] for i in range(0, len(text), size)]
+
+
+# ─── FIX 5: Query Preprocessing ──────────────────────────────
+def preprocess_query(query: str) -> str:
+    query = re.sub(r"\s+", " ", query).strip()
+    query = re.sub(r"[^\w\s\?\.\,\'\-]", "", query)
+    if query:
+        query = query[0].upper() + query[1:]
+    return query
 
 
 def resolve_api_key() -> str:
@@ -152,8 +189,35 @@ async def get_index_status() -> dict[str, Any]:
     }
 
 
+# ─── FIX 2: New Chat Reset Endpoint ──────────────────────────
+@app.post("/api/chat/reset")
+async def reset_chat() -> dict[str, Any]:
+    await semantic_cache.clear()
+    return {
+        "status": "ok",
+        "message": "Chat history and cache cleared successfully"
+    }
+
+
+# ─── FIX 3: Clear Index / Fresh Start ────────────────────────
+@app.post("/api/index/reset")
+async def reset_index() -> dict[str, Any]:
+    global hybrid_index
+    async with index_lock:
+        hybrid_index = None
+    if INDEX_STORE_PATH.exists():
+        INDEX_STORE_PATH.unlink()
+    await semantic_cache.clear()
+    return {
+        "status": "ok",
+        "message": "Index and cache cleared. You can now upload a fresh PDF."
+    }
+
+
 @app.post("/api/ingest")
 async def ingest_pdf(file: UploadFile = File(...)) -> dict[str, Any]:
+    global hybrid_index
+
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF uploads are supported.")
 
@@ -161,13 +225,28 @@ async def ingest_pdf(file: UploadFile = File(...)) -> dict[str, Any]:
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded PDF is empty.")
 
+    # FIX 3: Skip if already indexed — no 15-20 min reprocess
+    async with index_lock:
+        if hybrid_index is not None and file.filename in hybrid_index.source_names():
+            return {
+                "status": "already_indexed",
+                "message": f"'{file.filename}' is already processed. No reprocessing needed.",
+                "sources": hybrid_index.source_names(),
+                "chunk_count": len(hybrid_index.chunks),
+                "node_count": hybrid_index.graph.number_of_nodes(),
+                "edge_count": hybrid_index.graph.number_of_edges(),
+            }
+
     temp_path = Path(tempfile.mktemp(suffix=".pdf"))
     await asyncio.to_thread(temp_path.write_bytes, content)
 
     api_key = resolve_api_key()
     async with index_lock:
-        global hybrid_index
-        nim = NvidiaNIMClient(api_key=api_key, concurrency_limit=DEFAULT_CONCURRENCY_LIMIT, status_callback=lambda _: None)
+        nim = NvidiaNIMClient(
+            api_key=api_key,
+            concurrency_limit=DEFAULT_CONCURRENCY_LIMIT,
+            status_callback=lambda _: None
+        )
         hybrid_index = await stream_ingest(
             pdf_path=temp_path,
             nim=nim,
@@ -179,7 +258,10 @@ async def ingest_pdf(file: UploadFile = File(...)) -> dict[str, Any]:
             text_chunk_overlap=DEFAULT_TEXT_CHUNK_OVERLAP,
         )
 
+    # FIX 1: Save index to disk after processing
+    save_index(hybrid_index)
     temp_path.unlink(missing_ok=True)
+
     return {
         "status": "indexed",
         "sources": hybrid_index.source_names(),
@@ -191,12 +273,31 @@ async def ingest_pdf(file: UploadFile = File(...)) -> dict[str, Any]:
 
 @app.post("/api/ingest/stream")
 async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
+    global hybrid_index
+
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF uploads are supported.")
 
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded PDF is empty.")
+
+    # FIX 3: Skip if already indexed in stream endpoint too
+    async with index_lock:
+        if hybrid_index is not None and file.filename in hybrid_index.source_names():
+            async def already_indexed_generator() -> Any:
+                yield sse_event("progress", {
+                    "stage": "Already Indexed",
+                    "progress": 100,
+                    "source": file.filename
+                })
+                yield sse_event("done", {
+                    "status": "already_indexed",
+                    "message": f"'{file.filename}' is already processed.",
+                    "sources": hybrid_index.source_names(),
+                    "chunk_count": len(hybrid_index.chunks),
+                })
+            return StreamingResponse(already_indexed_generator(), media_type="text/event-stream")
 
     temp_path = Path(tempfile.mktemp(suffix=".pdf"))
     await asyncio.to_thread(temp_path.write_bytes, content)
@@ -227,6 +328,8 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
                     text_chunk_chars=DEFAULT_TEXT_CHUNK_CHARS,
                     text_chunk_overlap=DEFAULT_TEXT_CHUNK_OVERLAP,
                 )
+                # FIX 1: Save index to disk after streaming ingest
+                save_index(hybrid_index)
                 return hybrid_index
 
         yield sse_event("progress", {"stage": "Uploading", "progress": 8, "source": source_name})
@@ -245,49 +348,37 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
                 if kind == "indexed":
                     if "OCR" not in emitted_stages:
                         emitted_stages.add("OCR")
-                        yield sse_event(
-                            "progress",
-                            {
-                                "stage": "OCR",
-                                "progress": 30,
-                                "source": source_name,
-                                "message": "OCR check complete",
-                            },
-                        )
+                        yield sse_event("progress", {
+                            "stage": "OCR",
+                            "progress": 30,
+                            "source": source_name,
+                            "message": "OCR check complete",
+                        })
                     last_stage = "Embedding Generation"
                     emitted_stages.add(last_stage)
-                    yield sse_event(
-                        "progress",
-                        {
-                            "stage": "Embedding Generation",
-                            "progress": 45,
-                            "source": source_name,
-                            **info,
-                        },
-                    )
+                    yield sse_event("progress", {
+                        "stage": "Embedding Generation",
+                        "progress": 45,
+                        "source": source_name,
+                        **info,
+                    })
                 elif kind == "graph_updated":
                     if "Entity Extraction" not in emitted_stages:
                         emitted_stages.add("Entity Extraction")
-                        yield sse_event(
-                            "progress",
-                            {
-                                "stage": "Entity Extraction",
-                                "progress": 62,
-                                "source": source_name,
-                                **info,
-                            },
-                        )
-                    last_stage = "Knowledge Graph Construction"
-                    emitted_stages.add(last_stage)
-                    yield sse_event(
-                        "progress",
-                        {
-                            "stage": "Knowledge Graph Construction",
-                            "progress": 72,
+                        yield sse_event("progress", {
+                            "stage": "Entity Extraction",
+                            "progress": 62,
                             "source": source_name,
                             **info,
-                        },
-                    )
+                        })
+                    last_stage = "Knowledge Graph Construction"
+                    emitted_stages.add(last_stage)
+                    yield sse_event("progress", {
+                        "stage": "Knowledge Graph Construction",
+                        "progress": 72,
+                        "source": source_name,
+                        **info,
+                    })
                 elif kind == "status":
                     message = str(info.get("message", ""))
                     if "ocr" in message.lower():
@@ -295,32 +386,35 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
                     elif "entity" in message.lower():
                         last_stage = "Entity Extraction"
                     emitted_stages.add(last_stage)
-                    yield sse_event("progress", {"stage": last_stage, "progress": 55, "source": source_name, **info})
+                    yield sse_event("progress", {
+                        "stage": last_stage,
+                        "progress": 55,
+                        "source": source_name,
+                        **info
+                    })
                 elif kind == "done":
                     emitted_stages.add("Ready")
-                    yield sse_event(
-                        "progress",
-                        {
-                            "stage": "Ready",
-                            "progress": 100,
-                            "source": source_name,
-                            **info,
-                        },
-                    )
+                    yield sse_event("progress", {
+                        "stage": "Ready",
+                        "progress": 100,
+                        "source": source_name,
+                        **info,
+                    })
 
             index = await task
-            yield sse_event(
-                "done",
-                {
-                    "status": "indexed",
-                    "sources": index.source_names(),
-                    "chunk_count": len(index.chunks),
-                    "node_count": index.graph.number_of_nodes(),
-                    "edge_count": index.graph.number_of_edges(),
-                },
-            )
+            yield sse_event("done", {
+                "status": "indexed",
+                "sources": index.source_names(),
+                "chunk_count": len(index.chunks),
+                "node_count": index.graph.number_of_nodes(),
+                "edge_count": index.graph.number_of_edges(),
+            })
         except Exception as exc:
-            yield sse_event("error", {"message": str(exc), "stage": last_stage, "source": source_name})
+            yield sse_event("error", {
+                "message": str(exc),
+                "stage": last_stage,
+                "source": source_name
+            })
         finally:
             temp_path.unlink(missing_ok=True)
 
@@ -329,6 +423,9 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
 
 @app.post("/api/chat")
 async def chat_stream(request: ChatRequest) -> StreamingResponse:
+    # FIX 5: Preprocess query
+    request.query = preprocess_query(request.query)
+
     if not request.query.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
 
@@ -347,7 +444,11 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
             answer = cache_hit.get("answer", "")
             for chunk in chunk_text(answer):
                 yield sse_event("answer", {"text": chunk})
-            yield sse_event("done", {"cached": True, "metadata": {k: v for k, v in cache_hit.items() if k != "answer"}})
+                await asyncio.sleep(0.01)
+            yield sse_event("done", {
+                "cached": True,
+                "metadata": {k: v for k, v in cache_hit.items() if k != "answer"}
+            })
             return
 
         yield sse_event("status", {"message": "cache_miss"})
@@ -399,11 +500,13 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
             event = status_messages[sent_statuses]
             yield sse_event(event["type"], {"message": event["message"]})
             sent_statuses += 1
+
         await semantic_cache.set(request.query, result)
 
         answer_text = result.get("answer", "")
         for chunk in chunk_text(answer_text):
             yield sse_event("answer", {"text": chunk})
+            await asyncio.sleep(0.01)  # FIX 6: Smooth streaming
 
         SKIP_KEYS = {"answer", "ranked_chunks", "graph_context"}
         metadata = {k: v for k, v in result.items() if k not in SKIP_KEYS}
@@ -419,6 +522,6 @@ async def http_exception_handler(request: Any, exc: HTTPException) -> JSONRespon
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+
 print("KEY PREFIX =", os.getenv("NVIDIA_API_KEY", "")[:15])
