@@ -22,17 +22,15 @@ jobs:
           rm -rf frontend/
           rm -rf backend/
           
-          # Create Hugging Face specific README.md with YAML configuration
-          cat << 'EOF' > README.md
----
-title: EvidentAI GraphRAG
-emoji: 🧠
-colorFrom: blue
-colorTo: purple
-sdk: docker
-pinned: false
----
-EOF
+          # Create Hugging Face specific README.md with YAML configuration safely
+          echo "---" > README.md
+          echo "title: EvidentAI GraphRAG" >> README.md
+          echo -e "emoji: \U0001F9E0" >> README.md
+          echo "colorFrom: blue" >> README.md
+          echo "colorTo: purple" >> README.md
+          echo "sdk: docker" >> README.md
+          echo "pinned: false" >> README.md
+          echo "---" >> README.md
           cat readme.md >> README.md
           rm readme.md
           
