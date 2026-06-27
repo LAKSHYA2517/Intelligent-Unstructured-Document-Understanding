@@ -176,6 +176,15 @@ def resolve_api_key() -> str:
 async def health_check() -> dict[str, Any]:
     return {"status": "ok", "has_index": hybrid_index is not None}
 
+@app.get("/api/sources")
+async def get_sources() -> dict[str, Any]:
+    if hybrid_index is None:
+        return {"sources": []}
+    return {
+        "sources": hybrid_index.source_names(),
+        "chunk_count": len(hybrid_index.chunks)
+    }
+
 
 @app.get("/api/index")
 async def get_index_status() -> dict[str, Any]:
