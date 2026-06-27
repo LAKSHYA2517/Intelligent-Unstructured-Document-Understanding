@@ -1380,6 +1380,30 @@ const LegacyDashboard = ({ setView, session, isLightMode, setIsLightMode }) => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [docs, setDocs] = useState([]);
+
+// Load already indexed PDFs on page load
+useEffect(() => {
+  const fetchSources = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/sources`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.sources && data.sources.length > 0) {
+          const restoredDocs = data.sources.map((name, idx) => ({
+            id: idx + 1,
+            name: name,
+            status: 'Parsed',
+            icon: <FileText size={18} />
+          }));
+          setDocs(restoredDocs);
+        }
+      }
+    } catch (err) {
+      console.error('Could not fetch sources:', err);
+    }
+  };
+  fetchSources();
+}, []);
   const [showProfile, setShowProfile] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef(null);
