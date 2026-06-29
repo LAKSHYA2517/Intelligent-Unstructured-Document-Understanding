@@ -51,7 +51,7 @@ uploads_dir = Path("backend/uploads")
 if uploads_dir.exists():
     app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
-<<<<<<< HEAD
+
 # ─── FIX 1: Doc Store — Save/Load Index to Disk ──────────────
 INDEX_STORE_PATH = Path("index_store.pkl")
 
@@ -75,11 +75,11 @@ def load_index() -> Optional[HybridIndex]:
     return None
 
 # Load index on startup automatically
-hybrid_index: Optional[HybridIndex] = load_index()
-=======
+
+
 
 hybrid_index: Optional[HybridIndex] = None
->>>>>>> 9bc4e51 (feat: add chunking utilities for document indexing)
+
 index_lock = asyncio.Lock()
 pii_masker = PiiMasker()
 
