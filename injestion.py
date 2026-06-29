@@ -44,11 +44,11 @@ except ImportError:  # pragma: no cover
 
 try:
     import chromadb
-except ImportError:  # pragma: no cover - handled at runtime for clearer UX
+except ImportError:  # pragma: no cover - handled at runtime with clearer UX
     chromadb = None
 
 ChromaCollection = Any
-MetadataValue = str | int | float | bool
+MetadataValue = Any
 
 try:
     import pandas as pd
@@ -172,7 +172,7 @@ def ensure_dependency(name: str, module: Any) -> None:
 # =============================================================================
 
 
-@dataclass(slots=True)
+@dataclass
 class DocumentChunk:
     chunk_id: str
     source: str
@@ -194,7 +194,7 @@ class DocumentChunk:
         return meta
 
 
-@dataclass(slots=True)
+@dataclass
 class HybridIndex:
     chunks: list[DocumentChunk]
     collection: ChromaCollection
