@@ -10,3 +10,4 @@ streamlit-agraph
 fastapi
 uvicorn[standard]
 pydantic
+rank_bm25

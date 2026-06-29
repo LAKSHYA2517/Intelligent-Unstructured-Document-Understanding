@@ -1,34 +1,40 @@
+from __future__ import annotations
+
 import asyncio
 import json
+<<<<<<< HEAD
 import os
 import pickle
 import re
+=======
+>>>>>>> 9bc4e51 (feat: add chunking utilities for document indexing)
 import tempfile
 from collections import OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from injestion import (
-    DEFAULT_CHUNK_SIZE_LIMIT,
     DEFAULT_CONCURRENCY_LIMIT,
     DEFAULT_TEXT_CHUNK_CHARS,
     DEFAULT_TEXT_CHUNK_OVERLAP,
     HybridIndex,
     NvidiaNIMClient,
     answer_query_robust,
-    build_hybrid_index,
     get_api_key,
     stream_ingest,
 )
+from pii import PiiMasker
+from retrieval import HybridRetrievalService
+
 
 load_dotenv()
 
@@ -43,10 +49,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 uploads_dir = Path("backend/uploads")
 if uploads_dir.exists():
     app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
+<<<<<<< HEAD
 # ─── FIX 1: Doc Store — Save/Load Index to Disk ──────────────
 INDEX_STORE_PATH = Path("index_store.pkl")
 
@@ -71,7 +79,12 @@ def load_index() -> Optional[HybridIndex]:
 
 # Load index on startup automatically
 hybrid_index: Optional[HybridIndex] = load_index()
+=======
+
+hybrid_index: Optional[HybridIndex] = None
+>>>>>>> 9bc4e51 (feat: add chunking utilities for document indexing)
 index_lock = asyncio.Lock()
+pii_masker = PiiMasker()
 
 # ─── FIX 4+6: Improved Constants ─────────────────────────────
 CACHE_MAX_ENTRIES = 128
@@ -86,7 +99,11 @@ class CacheEntry:
 
 
 class SemanticCache:
-    def __init__(self, max_entries: int = CACHE_MAX_ENTRIES, similarity_threshold: float = CACHE_SIMILARITY_THRESHOLD) -> None:
+    def __init__(
+        self,
+        max_entries: int = CACHE_MAX_ENTRIES,
+        similarity_threshold: float = CACHE_SIMILARITY_THRESHOLD,
+    ) -> None:
         self.max_entries = max_entries
         self.similarity_threshold = similarity_threshold
         self.store: OrderedDict[str, CacheEntry] = OrderedDict()
@@ -94,11 +111,13 @@ class SemanticCache:
 
     @staticmethod
     def normalize_text(text: str) -> str:
-        return re.sub(r"\s+", " ", text).strip().lower()
+        return " ".join(text.lower().strip().split())
 
     @staticmethod
-    def similarity(a: str, b: str) -> float:
-        return SequenceMatcher(None, a, b).ratio()
+    def similarity(left: str, right: str) -> float:
+        if not left or not right:
+            return 0.0
+        return SequenceMatcher(None, left, right).ratio()
 
     async def get(self, query: str) -> Optional[dict[str, Any]]:
         normalized = self.normalize_text(query)
@@ -108,7 +127,7 @@ class SemanticCache:
                 self.store[normalized] = entry
                 return entry.result
 
-            best_key = None
+            best_key: str | None = None
             best_score = 0.0
             for key in self.store.keys():
                 score = self.similarity(normalized, key)
@@ -120,7 +139,6 @@ class SemanticCache:
                 entry = self.store.pop(best_key)
                 self.store[best_key] = entry
                 return entry.result
-
         return None
 
     async def set(self, query: str, result: dict[str, Any]) -> None:
@@ -145,6 +163,16 @@ class ChatRequest(BaseModel):
     source_filter: Optional[str] = None
     agentic: bool = False
     evidence_threshold: Optional[float] = None
+    mask_pii: bool = True
+
+
+class RetrieveRequest(BaseModel):
+    query: str
+    doc_id: Optional[str] = None
+    semantic_top_k: int = 20
+    lexical_top_k: int = 20
+    final_k: int = 6
+    mask_pii: bool = True
 
 
 def sse_event(event: str, data: Any) -> str:
@@ -172,9 +200,43 @@ def resolve_api_key() -> str:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+def prepare_query(query: str, mask_pii: bool) -> tuple[str, dict[str, str]]:
+    if not mask_pii:
+        return query, {}
+    return pii_masker.mask(query)
+
+
+def default_doc_id(index: HybridIndex, requested_doc_id: str | None) -> str:
+    if requested_doc_id:
+        return requested_doc_id
+    sources = index.source_names()
+    return sources[0] if sources else ""
+
+
+def serialize_chunk(chunk: Any) -> dict[str, Any]:
+    return {
+        "chunk_id": getattr(chunk, "chunk_id", ""),
+        "source": getattr(chunk, "source", ""),
+        "content_type": getattr(chunk, "content_type", ""),
+        "title": getattr(chunk, "title", ""),
+        "sequence": getattr(chunk, "sequence", 0),
+        "content": getattr(chunk, "content", ""),
+        "metadata": getattr(chunk, "metadata", {}),
+    }
+
+
 @app.get("/api/health")
 async def health_check() -> dict[str, Any]:
-    return {"status": "ok", "has_index": hybrid_index is not None}
+    return {
+        "status": "ok",
+        "has_index": hybrid_index is not None,
+        "modules": {
+            "pii": True,
+            "retrieval": True,
+            "chunking": True,
+            "eval": True,
+        },
+    }
 
 @app.get("/api/sources")
 async def get_sources() -> dict[str, Any]:
@@ -225,9 +287,13 @@ async def reset_index() -> dict[str, Any]:
 
 @app.post("/api/ingest")
 async def ingest_pdf(file: UploadFile = File(...)) -> dict[str, Any]:
+<<<<<<< HEAD
     global hybrid_index
 
     if not file.filename.lower().endswith(".pdf"):
+=======
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+>>>>>>> 9bc4e51 (feat: add chunking utilities for document indexing)
         raise HTTPException(status_code=400, detail="Only PDF uploads are supported.")
 
     content = await file.read()
@@ -249,6 +315,7 @@ async def ingest_pdf(file: UploadFile = File(...)) -> dict[str, Any]:
     temp_path = Path(tempfile.mktemp(suffix=".pdf"))
     await asyncio.to_thread(temp_path.write_bytes, content)
 
+<<<<<<< HEAD
     api_key = resolve_api_key()
     async with index_lock:
         nim = NvidiaNIMClient(
@@ -278,13 +345,47 @@ async def ingest_pdf(file: UploadFile = File(...)) -> dict[str, Any]:
         "node_count": hybrid_index.graph.number_of_nodes(),
         "edge_count": hybrid_index.graph.number_of_edges(),
     }
+=======
+    try:
+        api_key = resolve_api_key()
+        async with index_lock:
+            global hybrid_index
+            nim = NvidiaNIMClient(
+                api_key=api_key,
+                concurrency_limit=DEFAULT_CONCURRENCY_LIMIT,
+                status_callback=lambda _: None,
+            )
+            hybrid_index = await stream_ingest(
+                pdf_path=temp_path,
+                nim=nim,
+                on_event=lambda **_: None,
+                source_name=file.filename,
+                index=hybrid_index,
+                chunk_size_pages=5,
+                text_chunk_chars=DEFAULT_TEXT_CHUNK_CHARS,
+                text_chunk_overlap=DEFAULT_TEXT_CHUNK_OVERLAP,
+            )
+        return {
+            "status": "indexed",
+            "sources": hybrid_index.source_names(),
+            "chunk_count": len(hybrid_index.chunks),
+            "node_count": hybrid_index.graph.number_of_nodes(),
+            "edge_count": hybrid_index.graph.number_of_edges(),
+        }
+    finally:
+        temp_path.unlink(missing_ok=True)
+>>>>>>> 9bc4e51 (feat: add chunking utilities for document indexing)
 
 
 @app.post("/api/ingest/stream")
 async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
+<<<<<<< HEAD
     global hybrid_index
 
     if not file.filename.lower().endswith(".pdf"):
+=======
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+>>>>>>> 9bc4e51 (feat: add chunking utilities for document indexing)
         raise HTTPException(status_code=400, detail="Only PDF uploads are supported.")
 
     content = await file.read()
@@ -313,40 +414,47 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
     source_name = file.filename
 
     async def event_generator() -> Any:
-        api_key = resolve_api_key()
         event_queue: asyncio.Queue[tuple[str, dict[str, Any]]] = asyncio.Queue()
 
         def on_event(kind: str, **info: Any) -> None:
             event_queue.put_nowait((kind, info))
 
-        async def run_ingest() -> HybridIndex:
-            global hybrid_index
+        try:
+            api_key = resolve_api_key()
             async with index_lock:
+                global hybrid_index
                 nim = NvidiaNIMClient(
                     api_key=api_key,
                     concurrency_limit=DEFAULT_CONCURRENCY_LIMIT,
                     status_callback=lambda message: on_event("status", message=message),
                 )
-                hybrid_index = await stream_ingest(
-                    pdf_path=temp_path,
-                    nim=nim,
-                    on_event=on_event,
-                    source_name=source_name,
-                    index=hybrid_index,
-                    chunk_size_pages=5,
-                    text_chunk_chars=DEFAULT_TEXT_CHUNK_CHARS,
-                    text_chunk_overlap=DEFAULT_TEXT_CHUNK_OVERLAP,
+                task = asyncio.create_task(
+                    stream_ingest(
+                        pdf_path=temp_path,
+                        nim=nim,
+                        on_event=on_event,
+                        source_name=source_name,
+                        index=hybrid_index,
+                        chunk_size_pages=5,
+                        text_chunk_chars=DEFAULT_TEXT_CHUNK_CHARS,
+                        text_chunk_overlap=DEFAULT_TEXT_CHUNK_OVERLAP,
+                    )
                 )
+<<<<<<< HEAD
                 # FIX 1: Save index to disk after streaming ingest
                 save_index(hybrid_index)
                 return hybrid_index
+=======
+>>>>>>> 9bc4e51 (feat: add chunking utilities for document indexing)
 
-        yield sse_event("progress", {"stage": "Uploading", "progress": 8, "source": source_name})
-        yield sse_event("progress", {"stage": "Parsing", "progress": 18, "source": source_name})
-        task = asyncio.create_task(run_ingest())
-        last_stage = "Parsing"
-        emitted_stages: set[str] = {"Uploading", "Parsing"}
+                while not task.done():
+                    try:
+                        kind, info = await asyncio.wait_for(event_queue.get(), timeout=0.25)
+                    except asyncio.TimeoutError:
+                        continue
+                    yield sse_event(kind if kind != "status" else "progress", {"source": source_name, **info})
 
+<<<<<<< HEAD
         try:
             while not task.done() or not event_queue.empty():
                 try:
@@ -424,17 +532,37 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
                 "stage": last_stage,
                 "source": source_name
             })
+=======
+                hybrid_index = await task
+                yield sse_event(
+                    "done",
+                    {
+                        "status": "indexed",
+                        "sources": hybrid_index.source_names(),
+                        "chunk_count": len(hybrid_index.chunks),
+                        "node_count": hybrid_index.graph.number_of_nodes(),
+                        "edge_count": hybrid_index.graph.number_of_edges(),
+                    },
+                )
+        except Exception as exc:
+            yield sse_event("error", {"message": str(exc), "source": source_name})
+>>>>>>> 9bc4e51 (feat: add chunking utilities for document indexing)
         finally:
             temp_path.unlink(missing_ok=True)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
+<<<<<<< HEAD
 @app.post("/api/chat")
 async def chat_stream(request: ChatRequest) -> StreamingResponse:
     # FIX 5: Preprocess query
     request.query = preprocess_query(request.query)
 
+=======
+@app.post("/api/retrieve")
+async def retrieve_debug(request: RetrieveRequest) -> dict[str, Any]:
+>>>>>>> 9bc4e51 (feat: add chunking utilities for document indexing)
     if not request.query.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
 
@@ -443,21 +571,80 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
     if index is None:
         raise HTTPException(status_code=404, detail="No index is available. Ingest a PDF first.")
 
-    cache_hit = await semantic_cache.get(request.query)
+    sanitized_query, pii_audit = prepare_query(request.query, request.mask_pii)
+    api_key = resolve_api_key()
+    nim = NvidiaNIMClient(
+        api_key=api_key,
+        concurrency_limit=DEFAULT_CONCURRENCY_LIMIT,
+        status_callback=lambda _: None,
+    )
+    service = HybridRetrievalService(
+        collection=index.collection,
+        graph=index.graph,
+        chunks=index.chunks,
+        embedder=nim,
+        semantic_top_k=request.semantic_top_k,
+        lexical_top_k=request.lexical_top_k,
+        final_k=request.final_k,
+    )
+    response = await service.retrieve_and_rerank(
+        sanitized_query,
+        default_doc_id(index, request.doc_id),
+    )
+    return {
+        "query": sanitized_query,
+        "pii_audit": pii_audit,
+        "retrieved_chunks": [serialize_chunk(chunk) for chunk in response.retrieved_chunks],
+        "fusion_scores": response.fusion_scores,
+        "assembled_context": response.assembled_context,
+        "fused_ranking": [
+            {
+                "chunk_id": item.chunk.chunk_id,
+                "fusion_score": item.fusion_score,
+                "fused_rank": item.fused_rank,
+                "semantic_rank": item.semantic_rank,
+                "lexical_rank": item.lexical_rank,
+            }
+            for item in response.fused_ranking
+        ],
+    }
+
+
+@app.post("/api/chat")
+async def chat_stream(request: ChatRequest) -> StreamingResponse:
+    if not request.query.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty.")
+
+    sanitized_query, pii_audit = prepare_query(request.query, request.mask_pii)
+
+    async with index_lock:
+        index = hybrid_index
+    if index is None:
+        raise HTTPException(status_code=404, detail="No index is available. Ingest a PDF first.")
+
+    cache_hit = await semantic_cache.get(sanitized_query)
 
     async def event_generator() -> Any:
         yield sse_event("status", {"message": "request_received"})
+        if pii_audit:
+            yield sse_event("status", {"message": "pii_masked", "mapping": pii_audit})
 
         if cache_hit is not None:
             yield sse_event("status", {"message": "cache_hit"})
             answer = cache_hit.get("answer", "")
             for chunk in chunk_text(answer):
                 yield sse_event("answer", {"text": chunk})
+<<<<<<< HEAD
                 await asyncio.sleep(0.01)
             yield sse_event("done", {
                 "cached": True,
                 "metadata": {k: v for k, v in cache_hit.items() if k != "answer"}
             })
+=======
+            metadata = {key: value for key, value in cache_hit.items() if key != "answer"}
+            metadata["pii_audit"] = pii_audit
+            yield sse_event("done", {"cached": True, "metadata": metadata})
+>>>>>>> 9bc4e51 (feat: add chunking utilities for document indexing)
             return
 
         yield sse_event("status", {"message": "cache_miss"})
@@ -477,7 +664,7 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
 
         answer_task = asyncio.create_task(
             answer_query_robust(
-                request.query,
+                sanitized_query,
                 index,
                 nim,
                 source_filter=request.source_filter,
@@ -510,18 +697,22 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
             yield sse_event(event["type"], {"message": event["message"]})
             sent_statuses += 1
 
+<<<<<<< HEAD
         await semantic_cache.set(request.query, result)
+=======
+        result["pii_audit"] = pii_audit
+        await semantic_cache.set(sanitized_query, result)
+>>>>>>> 9bc4e51 (feat: add chunking utilities for document indexing)
 
         answer_text = result.get("answer", "")
         for chunk in chunk_text(answer_text):
             yield sse_event("answer", {"text": chunk})
             await asyncio.sleep(0.01)  # FIX 6: Smooth streaming
 
-        SKIP_KEYS = {"answer", "ranked_chunks", "graph_context"}
-        metadata = {k: v for k, v in result.items() if k not in SKIP_KEYS}
-        yield sse_event("done", {"cached": False, "metadata": metadata})
+        yield sse_event("done", {"cached": False, "metadata": {k: v for k, v in result.items() if k != "answer"}})
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+<<<<<<< HEAD
 
 
 @app.exception_handler(HTTPException)
@@ -534,3 +725,5 @@ if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
 
 print("KEY PREFIX =", os.getenv("NVIDIA_API_KEY", "")[:15])
+=======
+>>>>>>> 9bc4e51 (feat: add chunking utilities for document indexing)
