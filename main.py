@@ -15,7 +15,7 @@ from typing import Any, Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -311,7 +311,6 @@ async def ingest_pdf(file: UploadFile = File(...)) -> dict[str, Any]:
     try:
         api_key = resolve_api_key()
         async with index_lock:
-            global hybrid_index
             nim = NvidiaNIMClient(
                 api_key=api_key,
                 concurrency_limit=DEFAULT_CONCURRENCY_LIMIT,
@@ -371,7 +370,10 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
     source_name = file.filename
 
     async def event_generator() -> Any:
+        global hybrid_index
         event_queue: asyncio.Queue[tuple[str, dict[str, Any]]] = asyncio.Queue()
+        emitted_stages: set[str] = set()
+        last_stage: str = "Ingestion"
 
         def on_event(kind: str, **info: Any) -> None:
             event_queue.put_nowait((kind, info))
@@ -379,7 +381,6 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
         try:
             api_key = resolve_api_key()
             async with index_lock:
-                global hybrid_index
                 nim = NvidiaNIMClient(
                     api_key=api_key,
                     concurrency_limit=DEFAULT_CONCURRENCY_LIMIT,
@@ -397,16 +398,7 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
                         text_chunk_overlap=DEFAULT_TEXT_CHUNK_OVERLAP,
                     )
                 )
-                return hybrid_index
 
-                while not task.done():
-                    try:
-                        kind, info = await asyncio.wait_for(event_queue.get(), timeout=0.25)
-                    except asyncio.TimeoutError:
-                        continue
-                    yield sse_event(kind if kind != "status" else "progress", {"source": source_name, **info})
-
-        try:
             while not task.done() or not event_queue.empty():
                 try:
                     kind, info = await asyncio.wait_for(event_queue.get(), timeout=0.25)
@@ -470,6 +462,7 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
                     })
 
             index = await task
+            hybrid_index = index
             yield sse_event("done", {
                 "status": "indexed",
                 "sources": index.source_names(),
