@@ -2,12 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import json
-<<<<<<< HEAD
 import os
 import pickle
 import re
-=======
->>>>>>> 9bc4e51 (feat: add chunking utilities for document indexing)
 import tempfile
 from collections import OrderedDict
 from dataclasses import dataclass
