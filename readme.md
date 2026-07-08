@@ -22,13 +22,13 @@ A React web app talks to a FastAPI backend that wraps a hybrid GraphRAG engine: 
 
 ```
 ┌──────────────┐   upload PDF        ┌─────────────────────────┐
-│ React (Vite) │ ──POST /api/ingest─▶│  FastAPI (main.py)      │
+│ React (Vite) │ ──POST /api/ingest─▶│  FastAPI (app/main.py)  │
 │  frontend/   │                     │                         │
 │              │ ──POST /api/chat───▶│  • SemanticCache (LRU)  │
 │              │ ◀──SSE: status,─────│  • SSE streaming        │
 │              │     answer, done    │                         │
 └──────────────┘                     └───────────┬─────────────┘
-                                                 │ injestion.py
+                                                 │ app/injestion.py
                                                  ▼
             ┌────────────────────────────────────────────────────────┐
             │  Docling parse → NVIDIA vision (charts) → chunking      │
@@ -67,15 +67,21 @@ A React web app talks to a FastAPI backend that wraps a hybrid GraphRAG engine: 
 
 ```
 .
-├── main.py            # FastAPI server: /api/ingest, /api/chat (SSE), /api/health, /api/index
-├── injestion.py       # GraphRAG engine: parsing, vision, chunking, Chroma + NetworkX,
-│                       #   retrieval, rerank, answer_query_robust, stream_ingest
-├── requirements.txt   # Python deps
-├── backend/uploads/   # uploaded PDFs + extracted chart images
-├── frontend/          # React + Vite single-page app
+├── main.py             # thin entrypoint: re-exports `app` from app.main
+├── app/                # backend package
+│   ├── main.py         # FastAPI server: /api/ingest, /api/chat (SSE), /api/health, /api/index
+│   ├── injestion.py    # GraphRAG engine: parsing, vision, chunking, Chroma + NetworkX,
+│   │                   #   retrieval, rerank, answer_query_robust, stream_ingest
+│   ├── retrieval.py    # hybrid semantic + lexical retrieval and fusion/rerank
+│   ├── pii.py          # PII detection/masking
+│   ├── chunking.py     # text chunking utilities
+│   └── eval.py         # offline evaluation harness
+├── requirements.txt    # Python deps
+├── backend/uploads/    # uploaded PDFs + extracted chart images (generated, gitignored)
+├── frontend/           # React + Vite single-page app
 │   ├── src/App.jsx
 │   └── package.json
-├── PRD.md / workflow.md / execution_plan.md   # design docs
+├── docs/               # design docs (PRD.md, workflow.md, execution_plan.md, ...)
 └── README.md
 ```
 
@@ -151,9 +157,9 @@ A **semantic cache** (LRU, 128 entries, 0.88 similarity) replays cached answers 
 | Where | Setting | Purpose |
 |---|---|---|
 | `.env` | `NVIDIA_API_KEY` | NVIDIA NIM auth (required) |
-| `injestion.py` | `*_MODEL` constants | swap NVIDIA models |
-| `injestion.py` | `DEFAULT_CHUNK_*`, `DEFAULT_CONCURRENCY_LIMIT` | chunking & API concurrency |
-| `main.py` | `CACHE_MAX_ENTRIES`, `CACHE_SIMILARITY_THRESHOLD` | semantic cache behaviour |
+| `app/injestion.py` | `*_MODEL` constants | swap NVIDIA models |
+| `app/injestion.py` | `DEFAULT_CHUNK_*`, `DEFAULT_CONCURRENCY_LIMIT` | chunking & API concurrency |
+| `app/main.py` | `CACHE_MAX_ENTRIES`, `CACHE_SIMILARITY_THRESHOLD` | semantic cache behaviour |
 
 ---
 

@@ -10,10 +10,10 @@ adds:
   - Streamlit demo interface
 
 Run as a CLI:
-    python injestion.py --pdf test-5.pdf --build
+    python -m app.injestion --pdf test-5.pdf --build
 
 Run as a Streamlit demo:
-    streamlit run injestion.py
+    streamlit run app/injestion.py
 """
 
 from __future__ import annotations
@@ -113,7 +113,7 @@ def run_async(coro: Any) -> Any:
 # Configuration
 # =============================================================================
 
-WORKSPACE = Path(__file__).resolve().parent
+WORKSPACE = Path(__file__).resolve().parent.parent
 DEFAULT_PDF_FILENAME = "test-5.pdf"
 MD_FILENAME = "parsed_text_clean.md"
 REPORT_FILENAME = "nvidia_vision_report.md"
