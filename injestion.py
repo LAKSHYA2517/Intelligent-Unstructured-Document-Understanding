@@ -1633,8 +1633,12 @@ async def answer_query_robust(
     )
     top_score = ranked_chunks[0][1] if ranked_chunks else None
 
-    classification = await classify_query(nim, query)
-    category = classification["category"]
+    try:
+        classification = await classify_query(nim, query)
+        category = classification["category"]
+    except Exception:
+        classification = {"category": "answerable", "reason": ""}
+        category = "answerable"
     base = {
         "category": category,
         "reason": classification["reason"],
