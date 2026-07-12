@@ -52,38 +52,39 @@ if uploads_dir.exists():
     app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 
-# ─── FIX 1: Doc Store — Save/Load Index to Disk ──────────────
+# --- Index Save/Load (survives Space restarts) ---
 INDEX_STORE_PATH = Path("index_store.pkl")
 
 def save_index(index: HybridIndex) -> None:
     try:
         with open(INDEX_STORE_PATH, "wb") as f:
             pickle.dump(index, f)
-        print("✅ Index saved to disk")
+        print("[index] Saved to disk:", INDEX_STORE_PATH)
     except Exception as e:
-        print(f"❌ Could not save index: {e}")
+        print(f"[index] Could not save to disk: {e}")
 
 def load_index() -> Optional[HybridIndex]:
     try:
         if INDEX_STORE_PATH.exists():
             with open(INDEX_STORE_PATH, "rb") as f:
                 index = pickle.load(f)
-            print("✅ Index loaded from disk")
+            print("[index] Loaded from disk:", INDEX_STORE_PATH)
             return index
     except Exception as e:
-        print(f"❌ Could not load index: {e}")
+        print(f"[index] Could not load from disk (will start fresh): {e}")
+        # Remove corrupt file so it does not block future saves
+        try:
+            INDEX_STORE_PATH.unlink(missing_ok=True)
+        except Exception:
+            pass
     return None
 
-# Load index on startup automatically
-
-
-
-hybrid_index: Optional[HybridIndex] = None
+# Load index on startup automatically - prevents re-ingestion after Space restarts
+hybrid_index: Optional[HybridIndex] = load_index()
 
 index_lock = asyncio.Lock()
 pii_masker = PiiMasker()
 
-# ─── FIX 4+6: Improved Constants ─────────────────────────────
 CACHE_MAX_ENTRIES = 128
 CACHE_SIMILARITY_THRESHOLD = 0.82
 CHUNK_SIZE = 8
@@ -181,7 +182,6 @@ def chunk_text(text: str, size: int = CHUNK_SIZE) -> list[str]:
     return [text[i : i + size] for i in range(0, len(text), size)]
 
 
-# ─── FIX 5: Query Preprocessing ──────────────────────────────
 def preprocess_query(query: str) -> str:
     query = re.sub(r"\s+", " ", query).strip()
     query = re.sub(r"[^\w\s\?\.\,\'\-]", "", query)
@@ -257,7 +257,6 @@ async def get_index_status() -> dict[str, Any]:
     }
 
 
-# ─── FIX 2: New Chat Reset Endpoint ──────────────────────────
 @app.post("/api/chat/reset")
 async def reset_chat() -> dict[str, Any]:
     await semantic_cache.clear()
@@ -267,7 +266,6 @@ async def reset_chat() -> dict[str, Any]:
     }
 
 
-# ─── FIX 3: Clear Index / Fresh Start ────────────────────────
 @app.post("/api/index/reset")
 async def reset_index() -> dict[str, Any]:
     global hybrid_index
@@ -293,7 +291,6 @@ async def ingest_pdf(file: UploadFile = File(...)) -> dict[str, Any]:
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded PDF is empty.")
 
-    # FIX 3: Skip if already indexed — no 15-20 min reprocess
     async with index_lock:
         if hybrid_index is not None and file.filename in hybrid_index.source_names():
             return {
@@ -348,7 +345,6 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded PDF is empty.")
 
-    # FIX 3: Skip if already indexed in stream endpoint too
     async with index_lock:
         if hybrid_index is not None and file.filename in hybrid_index.source_names():
             async def already_indexed_generator() -> Any:
@@ -463,6 +459,7 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
 
             index = await task
             hybrid_index = index
+            save_index(hybrid_index)  # persist to disk so restarts don't lose the index
             yield sse_event("done", {
                 "status": "indexed",
                 "sources": index.source_names(),
@@ -616,7 +613,7 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
         answer_text = result.get("answer", "")
         for chunk in chunk_text(answer_text):
             yield sse_event("answer", {"text": chunk})
-            await asyncio.sleep(0.01)  # FIX 6: Smooth streaming
+            await asyncio.sleep(0.01)
 
         yield sse_event("done", {"cached": False, "metadata": {k: v for k, v in result.items() if k != "answer"}})
 
