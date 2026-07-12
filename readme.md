@@ -38,7 +38,7 @@ A React web app talks to a FastAPI backend that wraps a hybrid GraphRAG engine: 
             │                                  (knowledge graph)      │
             │                                                         │
             │  Query: retrieve + NVIDIA rerank + 2-hop subgraph       │
-            │         → Llama-4 Maverick → grounded, cited answer     │
+            │         → Nemotron-Super-49B → grounded, cited answer   │
             └────────────────────────────────────────────────────────┘
 ```
 
@@ -53,7 +53,8 @@ A React web app talks to a FastAPI backend that wraps a hybrid GraphRAG engine: 
 | Document parsing | Docling (layout + tables + figures) |
 | Vector store | ChromaDB |
 | Knowledge graph | NetworkX (DiGraph) |
-| LLM (reasoning) | `meta/llama-4-maverick-17b-128e-instruct` (NVIDIA NIM) |
+| LLM (reasoning) | `nvidia/llama-3.3-nemotron-super-49b-v1` (NVIDIA NIM) |
+| LLM (graph extraction) | `meta/llama-3.1-8b-instruct` (NVIDIA NIM) |
 | Vision (charts) | `meta/llama-3.2-90b-vision-instruct` (NVIDIA NIM) |
 | Embeddings | `nvidia/nv-embed-v1` (NVIDIA NIM) |
 | Re-ranking | `nvidia/rerank-qa-mistral-4b` (NVIDIA NIM) |
@@ -142,7 +143,7 @@ A **semantic cache** (LRU, 128 entries, 0.88 similarity) replays cached answers 
 
 1. **Ingest** — Docling extracts text, tables, and chart images. Charts are described by the vision model. Content is chunked, embedded into **ChromaDB**, and structured into a **NetworkX knowledge graph** (entities + relations extracted by the LLM, with deterministic entity resolution). `stream_ingest` makes the document queryable progressively.
 2. **Retrieve** — the query is first expanded via **HyDE** (a hypothetical answer is generated and embedded), top chunks are pulled from ChromaDB and **re-ranked**; a **2-hop subgraph** around the relevant entities adds relational context.
-3. **Answer** — `answer_query_robust` feeds the fused context to **Llama-4 Maverick**, returns a grounded answer with citations, and **refuses gracefully** when the documents don't support an answer.
+3. **Answer** — `answer_query_robust` feeds the fused context to **Nemotron-Super-49B**, returns a grounded answer with inline `[S#]` citations, and **refuses gracefully** when the documents don't support an answer.
 
 ---
 
@@ -151,7 +152,7 @@ A **semantic cache** (LRU, 128 entries, 0.88 similarity) replays cached answers 
 | Where | Setting | Purpose |
 |---|---|---|
 | `.env` | `NVIDIA_API_KEY` | NVIDIA NIM auth (required) |
-| `injestion.py` | `*_MODEL` constants | swap NVIDIA models |
+| `injestion.py` | `*_MODEL` constants | swap NVIDIA models (also overrideable via `NVIDIA_REASONING_MODEL`, `NVIDIA_GRAPH_MODEL`, etc. env vars) |
 | `injestion.py` | `DEFAULT_CHUNK_*`, `DEFAULT_CONCURRENCY_LIMIT` | chunking & API concurrency |
 | `main.py` | `CACHE_MAX_ENTRIES`, `CACHE_SIMILARITY_THRESHOLD` | semantic cache behaviour |
 
