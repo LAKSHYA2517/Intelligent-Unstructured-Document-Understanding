@@ -137,11 +137,11 @@ NVIDIA_RERANK_URL = "https://ai.api.nvidia.com/v1/retrieval/nvidia/reranking"
 
 # --- Corrected Model Strings ---
 
-VISION_MODEL = "meta/llama-3.2-90b-vision-instruct"
-EMBED_MODEL = "nvidia/nv-embed-v1"                 # ADDED 'nvidia/'
-RERANK_MODEL = "nvidia/rerank-qa-mistral-4b"       # ADDED 'nvidia/'
-REASONING_MODEL = "meta/llama-4-maverick-17b-128e-instruct"
-GRAPH_EXTRACTION_MODEL = "meta/llama-4-maverick-17b-128e-instruct"
+VISION_MODEL      = os.getenv("NVIDIA_VISION_MODEL",  "meta/llama-3.2-90b-vision-instruct")
+EMBED_MODEL       = os.getenv("NVIDIA_EMBED_MODEL",   "nvidia/nv-embed-v1")
+RERANK_MODEL      = os.getenv("NVIDIA_RERANK_MODEL",  "nvidia/rerank-qa-mistral-4b")
+REASONING_MODEL   = os.getenv("NVIDIA_REASONING_MODEL", "nvidia/llama-3.3-nemotron-super-49b-v1")
+GRAPH_EXTRACTION_MODEL = os.getenv("NVIDIA_GRAPH_MODEL", "meta/llama-3.1-8b-instruct")
 
 
 StatusCallback = Callable[[str], None]
@@ -1460,7 +1460,10 @@ async def answer_query_agentic(
     source_filter: str | None = None,
 ) -> dict[str, Any]:
     """Multi-hop: decompose, answer each sub-question, then synthesize."""
-    plan = await plan_subquestions(nim, query)
+    try:
+        plan = await plan_subquestions(nim, query)
+    except Exception:
+        plan = {"multi_hop": False, "sub_questions": []}
     if not plan["multi_hop"]:
         result = await answer_query(query, index, nim, min_rerank_score, source_filter)
         result["sub_questions"] = []
@@ -1687,8 +1690,11 @@ async def answer_query_robust(
     # plan_subquestions() uses the same LLM to decide if decomposition is needed —
     # if not multi-hop it returns immediately with minimal latency overhead.
     if not agentic:
-        plan = await plan_subquestions(nim, query)
-        agentic = plan["multi_hop"]
+        try:
+            plan = await plan_subquestions(nim, query)
+            agentic = plan["multi_hop"]
+        except Exception:
+            agentic = False
 
     if agentic:
         result = await answer_query_agentic(query, index, nim, None, source_filter)
