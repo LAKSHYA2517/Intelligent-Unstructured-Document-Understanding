@@ -511,7 +511,7 @@ def run_local_docling_pipeline(
     pipeline_options.table_structure_options.mode = TableFormerMode.ACCURATE
     pipeline_options.generate_picture_images = True
     pipeline_options.do_ocr = False
-    pipeline_options.images_scale = 2.0
+    pipeline_options.images_scale = 1.0  # 2.0 produced ~15 MB base64 payloads that timed out the VLM
 
     converter = DocumentConverter(
         format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)}
@@ -761,6 +761,10 @@ def build_document_chunks(
             )
 
     for filename, summary in parse_vision_report(vision_report):
+        # Skip chunks where the VLM failed — "Vision analysis failed" content
+        # pollutes the index and causes the model to say "data not available".
+        if not summary or summary.startswith("Vision analysis failed"):
+            continue
         sequence += 1
         content = f"Chart/Image file: {filename}\n\nVision summary:\n{summary}".strip()
         page_range = None
@@ -860,7 +864,7 @@ async def retrieve_and_rerank(
     retrieval precision by ~15-25% on complex questions.
     """
     # --- HyDE: generate a hypothetical answer and embed that ---
-    if use_hyde and len(query.split()) > 4:
+    if use_hyde and len(query.split()) > 10:  # Raised from 4→10: short factual/table queries use raw embedding; HyDE hallucinations hurt retrieval for specific-value lookups
         try:
             hyde_prompt = (
                 f"Write a concise 2-3 sentence factual answer to this question "
