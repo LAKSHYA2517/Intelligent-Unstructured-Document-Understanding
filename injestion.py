@@ -537,14 +537,13 @@ def run_local_docling_pipeline(
                 continue
 
             width, height = image_obj.size
-            if width < 64 or height < 64:
-                # Skip tiny icons / decorative elements — too small to contain data
+            aspect_ratio = width / max(1, height)
+            if aspect_ratio <= 1.1:
                 skipped_count += 1
                 continue
 
-            colors = image_obj.getcolors(maxcolors=500000)
-            if colors is None or len(colors) > 50000:
-                # Skip true photographs (>50K distinct colours) — not data visualisations
+            colors = image_obj.getcolors(maxcolors=250000)
+            if colors is None or len(colors) > 15000:
                 skipped_count += 1
                 continue
 
