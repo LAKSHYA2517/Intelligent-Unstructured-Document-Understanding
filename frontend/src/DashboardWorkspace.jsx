@@ -704,18 +704,19 @@ export const DashboardWorkspace = ({ setView, session, isLightMode, setIsLightMo
       });
 
       if (!res.ok) throw new Error('Network response was not ok');
-
-      const reader = res.body.getReader();
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let done = false;
       let currentText = '';
+      let lineBuffer = ''; // accumulates partial lines split across network packets
 
       while (!done) {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
         if (!value) continue;
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        const raw = decoder.decode(value, { stream: true });
+        const lines = (lineBuffer + raw).split('\n');
+        lineBuffer = lines.pop(); // last entry may be incomplete — keep for next read
         let currentEvent = null;
 
         for (const line of lines) {
@@ -772,7 +773,7 @@ export const DashboardWorkspace = ({ setView, session, isLightMode, setIsLightMo
               if (data.metadata?.contributing_subgraph) setGraphData(data.metadata.contributing_subgraph);
             }
           } catch {
-            // Ignore partial stream chunks.
+            // Ignore genuinely malformed data (not split lines — those are handled by lineBuffer).
           }
         }
       }
