@@ -552,7 +552,7 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
             answer = cache_hit.get("answer", "")
             for chunk in chunk_text(answer):
                 yield sse_event("answer", {"text": chunk})
-            metadata = {key: value for key, value in cache_hit.items() if key != "answer"}
+            metadata = {key: value for key, value in cache_hit.items() if key not in ("answer", "ranked_chunks")}
             metadata["pii_audit"] = pii_audit
             yield sse_event("done", {"cached": True, "metadata": metadata})
             return
@@ -615,7 +615,7 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
             yield sse_event("answer", {"text": chunk})
             await asyncio.sleep(0.01)
 
-        yield sse_event("done", {"cached": False, "metadata": {k: v for k, v in result.items() if k != "answer"}})
+        yield sse_event("done", {"cached": False, "metadata": {k: v for k, v in result.items() if k not in ("answer", "ranked_chunks")}})
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
