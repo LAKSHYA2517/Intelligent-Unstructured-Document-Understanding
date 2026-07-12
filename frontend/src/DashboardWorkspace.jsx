@@ -708,7 +708,8 @@ export const DashboardWorkspace = ({ setView, session, isLightMode, setIsLightMo
       const decoder = new TextDecoder();
       let done = false;
       let currentText = '';
-      let lineBuffer = ''; // accumulates partial lines split across network packets
+      let lineBuffer = '';    // holds the tail of partial lines split across network packets
+      let currentEvent = null; // persists across reads so event: and data: can arrive in different packets
 
       while (!done) {
         const { value, done: doneReading } = await reader.read();
@@ -716,8 +717,7 @@ export const DashboardWorkspace = ({ setView, session, isLightMode, setIsLightMo
         if (!value) continue;
         const raw = decoder.decode(value, { stream: true });
         const lines = (lineBuffer + raw).split('\n');
-        lineBuffer = lines.pop(); // last entry may be incomplete — keep for next read
-        let currentEvent = null;
+        lineBuffer = lines.pop(); // save incomplete tail for next read
 
         for (const line of lines) {
           if (line.startsWith('event: ')) currentEvent = line.substring(7).trim();
