@@ -1,16 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+// Credentials are hardcoded here so the Vercel-deployed build uses the correct
+// project regardless of what env vars the Vercel dashboard has configured.
+// The anon/publishable key is safe to commit — it is designed to be public.
+const supabaseUrl = 'https://doqzbeqzxfjnzzekykoz.supabase.co'
+const supabaseAnonKey = 'sb_publishable_YbD-myOzUV1dtc3CP0GZhA_MfCk_yEB'
 
 // Initialize the Supabase client safely
 let supabaseInstance = null;
 
 try {
-  // Only initialize if the URL looks like a valid HTTP URL
-  if (supabaseUrl && supabaseUrl.startsWith('http') && supabaseAnonKey) {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
-  }
+  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
 } catch (error) {
   console.error("Failed to initialize Supabase client:", error);
 }
@@ -18,5 +18,5 @@ try {
 export const supabase = supabaseInstance;
 
 if (!supabase) {
-  console.warn("Supabase credentials not found or invalid. Authentication will fail. Please add a valid VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.");
+  console.warn("Supabase client failed to initialize.");
 }
