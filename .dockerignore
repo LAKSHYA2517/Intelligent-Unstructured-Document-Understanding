@@ -1,0 +1,37 @@
+# ── Secrets & Environment ──
+.env
+.env.local
+.env.*
+!.env.example
+
+# ── Git ──
+.git/
+.github/
+
+# ── Python ──
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# ── Data & Caches ──
+chroma_store/
+extracted_charts/
+index_store.pkl
+*.pkl
+tmp/
+
+# ── Diagnostics & Tests (not needed in production image) ──
+diagnose*.py
+test_*.py
+inspect_chroma.py
+nvidia_vision_report.md
+
+# ── Frontend (served separately) ──
+frontend/node_modules/
+frontend/dist/
+
+# ── IDE ──
+.vscode/
+.idea/

@@ -2099,8 +2099,8 @@ useEffect(() => {
 
 // --- APP WRAPPER ---
 export default function App() {
-  const [view, setView] = useState('landing'); // 'landing', 'login', 'dashboard'
-  const [session, setSession] = useState(null);
+  const [view, setView] = useState('dashboard'); // 'landing', 'login', 'dashboard'  — skip auth for local testing
+  const [session, setSession] = useState({ user: { email: 'local@test.dev' } }); // mock session for local testing
   const [isLightMode, setIsLightMode] = useState(false);
 
   useEffect(() => {

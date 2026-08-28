@@ -36,7 +36,7 @@ import { DotField } from './components/DotField';
 import { SpotlightCard } from './components/SpotlightCard';
 import { supabase } from './lib/supabaseClient';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE ?? (import.meta.env.DEV ? '' : 'http://localhost:8000');
 const ACCEPTED_TYPES = '.pdf,.docx,.png,.jpg,.jpeg,.xlsx,.csv,.txt,.pptx';
 
 const getWorkspaceTheme = (isLightMode) => ({
@@ -566,6 +566,30 @@ export const DashboardWorkspace = ({ setView, session, isLightMode, setIsLightMo
   }, [rightCollapsed]);
 
   useEffect(() => {
+    fetch(`${API_BASE}/api/sources`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.sources?.length) {
+          const loadedDocs = data.sources.map((name) => ({
+            id: name,
+            name: name,
+            status: 'Ready',
+            stage: 'Ready',
+            progress: 100,
+            chunks: data.chunk_count,
+            stages: INGESTION_STAGES.map((stage) => ({ stage, state: 'done' })),
+          }));
+          setDocs((prev) => {
+            const existingNames = new Set(prev.map((d) => d.name));
+            const newOnes = loadedDocs.filter((d) => !existingNames.has(d.name));
+            return [...prev, ...newOnes];
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (!textareaRef.current) return;
     textareaRef.current.style.height = '0px';
     textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
@@ -703,7 +727,14 @@ export const DashboardWorkspace = ({ setView, session, isLightMode, setIsLightMo
         body: JSON.stringify({ query, agentic: false }),
       });
 
-      if (!res.ok) throw new Error('Network response was not ok');
+      if (!res.ok) {
+        let errMessage = `Server error (${res.status})`;
+        try {
+          const errData = await res.json();
+          errMessage = errData.detail || errData.message || errMessage;
+        } catch (_) {}
+        throw new Error(errMessage);
+      }
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let done = false;
@@ -782,7 +813,7 @@ export const DashboardWorkspace = ({ setView, session, isLightMode, setIsLightMo
       window.clearInterval(loadingTimer);
       setMessages((prev) => {
         const next = [...prev];
-        next[messageIndex] = { ...next[messageIndex], text: 'Failed to connect to backend.', status: null };
+        next[messageIndex] = { ...next[messageIndex], text: err?.message || 'Failed to connect to backend.', status: null };
         return next;
       });
     } finally {

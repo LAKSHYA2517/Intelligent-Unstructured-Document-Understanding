@@ -40,8 +40,12 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
         "https://intelligent-unstructured-document-u.vercel.app"
     ],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:[0-9]+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -361,20 +365,30 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
                 })
             return StreamingResponse(already_indexed_generator(), media_type="text/event-stream")
 
-    temp_path = Path(tempfile.mktemp(suffix=".pdf"))
-    await asyncio.to_thread(temp_path.write_bytes, content)
+    uploads_dir = Path("backend/uploads")
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    clean_filename = Path(file.filename).name
+    temp_path = uploads_dir / clean_filename
+    temp_path.write_bytes(content)
     source_name = file.filename
 
     async def event_generator() -> Any:
         global hybrid_index
         event_queue: asyncio.Queue[tuple[str, dict[str, Any]]] = asyncio.Queue()
-        emitted_stages: set[str] = set()
-        last_stage: str = "Ingestion"
+        last_stage: str = "Parsing"
 
         def on_event(kind: str, **info: Any) -> None:
             event_queue.put_nowait((kind, info))
 
         try:
+            # Send immediate starting progress so UI transitions immediately
+            yield sse_event("progress", {
+                "stage": "Parsing",
+                "progress": 12,
+                "source": source_name,
+                "message": "Starting document parsing & chart extraction...",
+            })
+
             api_key = resolve_api_key()
             async with index_lock:
                 nim = NvidiaNIMClient(
@@ -389,7 +403,7 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
                         on_event=on_event,
                         source_name=source_name,
                         index=hybrid_index,
-                        chunk_size_pages=5,
+                        chunk_size_pages=4,
                         text_chunk_chars=DEFAULT_TEXT_CHUNK_CHARS,
                         text_chunk_overlap=DEFAULT_TEXT_CHUNK_OVERLAP,
                     )
@@ -397,59 +411,51 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
 
             while not task.done() or not event_queue.empty():
                 try:
-                    kind, info = await asyncio.wait_for(event_queue.get(), timeout=0.25)
+                    kind, info = await asyncio.wait_for(event_queue.get(), timeout=1.0)
                 except asyncio.TimeoutError:
+                    # Keep-alive SSE comment to prevent proxy / browser timeout
+                    yield ": ping\n\n"
                     continue
 
-                if kind == "indexed":
-                    if "OCR" not in emitted_stages:
-                        emitted_stages.add("OCR")
-                        yield sse_event("progress", {
-                            "stage": "OCR",
-                            "progress": 30,
-                            "source": source_name,
-                            "message": "OCR check complete",
-                        })
+                if kind == "status":
+                    stage = info.get("stage")
+                    if not stage:
+                        msg = str(info.get("message", "")).lower()
+                        if "ocr" in msg or "chart" in msg or "vision" in msg:
+                            stage = "OCR"
+                        elif "entity" in msg or "fact" in msg:
+                            stage = "Entity Extraction"
+                        elif "graph" in msg:
+                            stage = "Knowledge Graph Construction"
+                        elif "embed" in msg or "vector" in msg:
+                            stage = "Embedding Generation"
+                        else:
+                            stage = last_stage
+                    last_stage = stage
+                    yield sse_event("progress", {
+                        "stage": stage,
+                        "progress": info.get("progress", 30),
+                        "source": source_name,
+                        **info,
+                    })
+                elif kind == "indexed":
                     last_stage = "Embedding Generation"
-                    emitted_stages.add(last_stage)
                     yield sse_event("progress", {
                         "stage": "Embedding Generation",
-                        "progress": 45,
+                        "progress": 85,
                         "source": source_name,
                         **info,
                     })
                 elif kind == "graph_updated":
-                    if "Entity Extraction" not in emitted_stages:
-                        emitted_stages.add("Entity Extraction")
-                        yield sse_event("progress", {
-                            "stage": "Entity Extraction",
-                            "progress": 62,
-                            "source": source_name,
-                            **info,
-                        })
                     last_stage = "Knowledge Graph Construction"
-                    emitted_stages.add(last_stage)
                     yield sse_event("progress", {
                         "stage": "Knowledge Graph Construction",
-                        "progress": 72,
+                        "progress": 70,
                         "source": source_name,
                         **info,
                     })
-                elif kind == "status":
-                    message = str(info.get("message", ""))
-                    if "ocr" in message.lower():
-                        last_stage = "OCR"
-                    elif "entity" in message.lower():
-                        last_stage = "Entity Extraction"
-                    emitted_stages.add(last_stage)
-                    yield sse_event("progress", {
-                        "stage": last_stage,
-                        "progress": 55,
-                        "source": source_name,
-                        **info
-                    })
                 elif kind == "done":
-                    emitted_stages.add("Ready")
+                    last_stage = "Ready"
                     yield sse_event("progress", {
                         "stage": "Ready",
                         "progress": 100,
@@ -468,13 +474,13 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
                 "edge_count": index.graph.number_of_edges(),
             })
         except Exception as exc:
+            import traceback
+            traceback.print_exc()
             yield sse_event("error", {
                 "message": str(exc),
                 "stage": last_stage,
                 "source": source_name
             })
-        finally:
-            temp_path.unlink(missing_ok=True)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -629,4 +635,4 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
 
-print("KEY PREFIX =", os.getenv("NVIDIA_API_KEY", "")[:15])
+print("NVIDIA API key:", "configured" if os.getenv("NVIDIA_API_KEY", "").strip() else "NOT SET")
