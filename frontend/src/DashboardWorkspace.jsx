@@ -558,6 +558,16 @@ export const DashboardWorkspace = ({ setView, session, isLightMode, setIsLightMo
   const textareaRef = useRef(null);
 
   useEffect(() => {
+    const sessionKey = 'EvidentAI-document-session-started';
+    if (sessionStorage.getItem(sessionKey) === 'true') return;
+
+    sessionStorage.setItem(sessionKey, 'true');
+    fetch(`${API_BASE}/api/index/reset`, { method: 'POST' }).catch((error) => {
+      console.error('Failed to start a fresh document session:', error);
+    });
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem('EvidentAI-left-collapsed', String(leftCollapsed));
   }, [leftCollapsed]);
 
