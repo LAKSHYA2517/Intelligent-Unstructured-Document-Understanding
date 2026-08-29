@@ -20,11 +20,17 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from injestion import (
+    CHROMA_DIR,
     DEFAULT_CONCURRENCY_LIMIT,
     DEFAULT_TEXT_CHUNK_CHARS,
     DEFAULT_TEXT_CHUNK_OVERLAP,
+    IMAGE_DIR,
     HybridIndex,
+    init_chroma_collection,
     NvidiaNIMClient,
+    REPORT_FILENAME,
+    MD_FILENAME,
+    WORKSPACE,
     answer_query_robust,
     get_api_key,
     stream_ingest,
@@ -53,16 +59,18 @@ if uploads_dir.exists():
 
 SESSION_ARTIFACTS = (
     Path("backend/uploads"),
-    Path("chroma_store"),
-    Path("extracted_charts"),
-    Path("parsed_text_clean.md"),
-    Path("nvidia_vision_report.md"),
+    CHROMA_DIR,
+    IMAGE_DIR,
+    WORKSPACE / MD_FILENAME,
+    WORKSPACE / REPORT_FILENAME,
     Path("index_store.pkl"),
 )
 
 
-def clear_session_artifacts() -> None:
+def clear_session_artifacts(remove_chroma: bool = False) -> None:
     for artifact in SESSION_ARTIFACTS:
+        if artifact == CHROMA_DIR and not remove_chroma:
+            continue
         if artifact.is_dir():
             shutil.rmtree(artifact)
             if artifact == uploads_dir:
@@ -73,7 +81,7 @@ def clear_session_artifacts() -> None:
 
 @app.on_event("startup")
 async def start_empty_session() -> None:
-    clear_session_artifacts()
+    clear_session_artifacts(remove_chroma=True)
 
 
 @app.on_event("shutdown")
@@ -274,6 +282,7 @@ async def reset_index() -> dict[str, Any]:
     global hybrid_index
     async with index_lock:
         hybrid_index = None
+        init_chroma_collection(reset=True)
     clear_session_artifacts()
     await semantic_cache.clear()
     return {

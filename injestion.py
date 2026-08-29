@@ -117,8 +117,9 @@ WORKSPACE = Path(__file__).resolve().parent
 DEFAULT_PDF_FILENAME = "test-5.pdf"
 MD_FILENAME = "parsed_text_clean.md"
 REPORT_FILENAME = "nvidia_vision_report.md"
-CHROMA_DIR = WORKSPACE / "chroma_store"
-IMAGE_DIR = WORKSPACE / "extracted_charts"
+RUNTIME_ROOT = Path(os.getenv("EVIDENTAI_RUNTIME_DIR", tempfile.gettempdir())) / "evidentai"
+CHROMA_DIR = RUNTIME_ROOT / "chroma_store"
+IMAGE_DIR = RUNTIME_ROOT / "extracted_charts"
 
 DEFAULT_CHUNK_SIZE_LIMIT = 10
 DEFAULT_CONCURRENCY_LIMIT = 3
