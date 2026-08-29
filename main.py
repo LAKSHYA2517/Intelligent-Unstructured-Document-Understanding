@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import pickle
 import re
+import shutil
 import tempfile
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -51,36 +51,39 @@ uploads_dir = Path("backend/uploads")
 if uploads_dir.exists():
     app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
+SESSION_ARTIFACTS = (
+    Path("backend/uploads"),
+    Path("chroma_store"),
+    Path("extracted_charts"),
+    Path("parsed_text_clean.md"),
+    Path("nvidia_vision_report.md"),
+    Path("index_store.pkl"),
+)
 
-# --- Index Save/Load (survives Space restarts) ---
-INDEX_STORE_PATH = Path("index_store.pkl")
 
-def save_index(index: HybridIndex) -> None:
-    try:
-        with open(INDEX_STORE_PATH, "wb") as f:
-            pickle.dump(index, f)
-        print("[index] Saved to disk:", INDEX_STORE_PATH)
-    except Exception as e:
-        print(f"[index] Could not save to disk: {e}")
+def clear_session_artifacts() -> None:
+    for artifact in SESSION_ARTIFACTS:
+        if artifact.is_dir():
+            shutil.rmtree(artifact)
+            if artifact == uploads_dir:
+                artifact.mkdir(parents=True, exist_ok=True)
+        elif artifact.exists():
+            artifact.unlink()
 
-def load_index() -> Optional[HybridIndex]:
-    try:
-        if INDEX_STORE_PATH.exists():
-            with open(INDEX_STORE_PATH, "rb") as f:
-                index = pickle.load(f)
-            print("[index] Loaded from disk:", INDEX_STORE_PATH)
-            return index
-    except Exception as e:
-        print(f"[index] Could not load from disk (will start fresh): {e}")
-        # Remove corrupt file so it does not block future saves
-        try:
-            INDEX_STORE_PATH.unlink(missing_ok=True)
-        except Exception:
-            pass
-    return None
 
-# Load index on startup automatically - prevents re-ingestion after Space restarts
-hybrid_index: Optional[HybridIndex] = load_index()
+@app.on_event("startup")
+async def start_empty_session() -> None:
+    clear_session_artifacts()
+
+
+@app.on_event("shutdown")
+async def end_session() -> None:
+    clear_session_artifacts()
+
+
+# The index is intentionally process-scoped: uploaded documents remain available
+# during this server session and are discarded when the process stops.
+hybrid_index: Optional[HybridIndex] = None
 
 index_lock = asyncio.Lock()
 pii_masker = PiiMasker()
@@ -271,8 +274,7 @@ async def reset_index() -> dict[str, Any]:
     global hybrid_index
     async with index_lock:
         hybrid_index = None
-    if INDEX_STORE_PATH.exists():
-        INDEX_STORE_PATH.unlink()
+    clear_session_artifacts()
     await semantic_cache.clear()
     return {
         "status": "ok",
@@ -459,7 +461,6 @@ async def ingest_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
 
             index = await task
             hybrid_index = index
-            save_index(hybrid_index)  # persist to disk so restarts don't lose the index
             yield sse_event("done", {
                 "status": "indexed",
                 "sources": index.source_names(),
