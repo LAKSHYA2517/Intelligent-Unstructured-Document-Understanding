@@ -2099,8 +2099,8 @@ useEffect(() => {
 
 // --- APP WRAPPER ---
 export default function App() {
-  const [view, setView] = useState('dashboard'); // 'landing', 'login', 'dashboard'  — skip auth for local testing
-  const [session, setSession] = useState({ user: { email: 'local@test.dev' } }); // mock session for local testing
+  const [view, setView] = useState('login'); // 'landing', 'login', 'dashboard'
+  const [session, setSession] = useState(null);
   const [isLightMode, setIsLightMode] = useState(false);
 
   useEffect(() => {
@@ -2128,7 +2128,7 @@ export default function App() {
       if (_event === 'SIGNED_IN') {
         setView('dashboard');
       } else if (_event === 'SIGNED_OUT') {
-        setView('landing');
+        setView('login');
       }
     });
 
