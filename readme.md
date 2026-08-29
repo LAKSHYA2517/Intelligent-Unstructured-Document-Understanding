@@ -53,11 +53,11 @@ A React web app talks to a FastAPI backend that wraps a hybrid GraphRAG engine: 
 | Document parsing | Docling (layout + tables + figures) |
 | Vector store | ChromaDB |
 | Knowledge graph | NetworkX (DiGraph) |
-| LLM (reasoning) | `nvidia/llama-3.3-nemotron-super-49b-v1` (NVIDIA NIM) |
-| LLM (graph extraction) | `meta/llama-3.1-8b-instruct` (NVIDIA NIM) |
-| Vision (charts) | `meta/llama-3.2-90b-vision-instruct` (NVIDIA NIM) |
-| Embeddings | `nvidia/nv-embed-v1` (NVIDIA NIM) |
-| Re-ranking | `nvidia/rerank-qa-mistral-4b` (NVIDIA NIM) |
+| LLM (reasoning) | `meta/llama-3.2-11b-vision-instruct` (NVIDIA NIM) |
+| LLM (graph extraction) | `meta/llama-3.2-11b-vision-instruct` (NVIDIA NIM) |
+| Vision (charts) | `meta/llama-3.2-11b-vision-instruct` (NVIDIA NIM) |
+| Embeddings | `nvidia/llama-nemotron-embed-vl-1b-v2` (NVIDIA NIM) |
+| Re-ranking | `nvidia/llama-nemotron-rerank-1b-v2` (NVIDIA NIM) |
 | Graph viz | streamlit-agraph |
 
 > All language/vision/embedding inference runs through **NVIDIA NIM APIs** — a single `NVIDIA_API_KEY` covers every model.
